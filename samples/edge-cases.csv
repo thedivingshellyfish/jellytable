@@ -1,0 +1,7 @@
+ID,Alter,Datum,Zustimmung,Offene Antwort,Leer
+P01,23,2026-03-01,True,"Sagt ""ja"", aber;
+mit Zeilenumbruch",
+P02,31.5,2026-03-02T14:30:00,False,Ümläute & <Sonderzeichen>,
+P03,,,,  führendes Leerzeichen,
+P04,0.1,1999-12-31,True,🪼 emoji,
+P05,1234567,,,,

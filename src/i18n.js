@@ -1,0 +1,92 @@
+/* jellytable :: i18n.js -- user interface texts, German and English */
+window.JTText = {
+  de: {
+    tagline: "jellyqda goes table", open: "Öffnen", save: "Speichern", export: "Exportieren", undo: "Rückgängig", redo: "Wiederholen",
+    langBtn: "EN", langTitle: "Switch to English", theme: "Hell/Dunkel umschalten", more: "Weitere Optionen", items: "Items",
+    unsaved: "ungespeichert", saved: "Gespeichert ✓", fileNameTitle: "Dateiname (für Speichern und Export)",
+    // Start
+    joke: "jellyqda goes table", heroT: "Umfrage-Tabellen in Ruhe durchblättern",
+    heroD: "CSV- und Excel-Exporte aus Umfragen sind oft unübersichtlich. jellytable zeigt dir jedes Item für sich: links die Items, rechts alle Einträge – zum Lesen, Bearbeiten und Wieder-Speichern.",
+    privT: "Privatsphäre zuerst: Deine Daten verlassen nie deinen Rechner.",
+    privD: "jellytable läuft komplett in diesem Browser-Tab – kein Upload, kein Server, keine Cookies, kein Tracking. Funktioniert auch offline (Datei herunterladen und doppelklicken).",
+    s1: "Wie sind die Items angelegt?", colsT: "Items als Spalten", colsD: "Jede Spalte ist ein Item (Frage), jede Zeile eine Person. Typisch für Umfrage-Exporte.",
+    rowsT: "Items als Zeilen", rowsD: "Jede Zeile ist ein Item, die Einträge stehen nebeneinander.", headerCols: "Erste Zeile enthält die Item-Namen", headerRows: "Erste Spalte enthält die Item-Namen",
+    s2: "Datei laden", drop: "Tabelle hierher ziehen", or: "oder", pick: "Datei auswählen", sample: "Beispiel-Umfrage laden",
+    loading: "Wird geladen …", restoreT: "Weiterarbeiten?", restoreD: (n, d) => "„" + n + "“ vom " + d + " ist noch im Browser gespeichert.", restore: "Wiederherstellen", discard: "Verwerfen",
+    f1: ["Items durchblättern", "Links navigieren, rechts alle Einträge eines Items – mit Häufigkeiten auf einen Blick."],
+    f2: ["Bearbeiten", "Einträge ändern, leere Einträge einfügen oder entfernen, Items umbenennen – alles rückgängig zu machen."],
+    f3: ["Speichern & Export", "Excel (.xlsx), OpenDocument (.ods), CSV, TSV, Excel-2003-XML und JSON."],
+    f4: ["Offline & privat", "Eine einzige HTML-Datei, keine Bibliotheken, keine Verbindung ins Internet."],
+    foot: 'jellytable · frei unter MIT-Lizenz · inspiriert von <a href="https://thedivingshellyfish.github.io/jellyqda/">jellyqda</a>',
+    // Browser
+    itemsT: "Items", itemSearch: "Items suchen …", addItem: "Item hinzufügen", rename: "Umbenennen", delItem: "Item löschen", up: "Nach oben", down: "Nach unten",
+    delItemQ: (n) => "Item „" + n + "“ mit allen Einträgen löschen?", newItem: "Neues Item",
+    col: "Spalte", row: "Zeile", entries: "Einträge", filled: "ausgefüllt", empty: "leer", distinct: "verschiedene Werte",
+    idShow: "Kennung zeigen", none: "keine", filter: "Einträge durchsuchen …", hits: (n) => n + " Treffer",
+    hint: "＋ fügt an dieser Stelle einen leeren Eintrag ein, − entfernt einen Eintrag. Die folgenden Einträge dieses Items rutschen dabei nach – die anderen Items bleiben, wie sie sind.",
+    addFirst: "Eintrag am Anfang", addLast: "Eintrag am Ende", insertHere: "Leeren Eintrag hier einfügen", delEntry: "Eintrag entfernen",
+    page: (a, b, n) => a + "–" + b + " von " + n, prev: "Zurück", next: "Weiter", showItems: "Items anzeigen",
+    noItems: "Keine Items gefunden.",
+    // Export
+    expT: "Exportieren", fmtT: "Format", orientT: "Ausrichtung der Items", namesT: "Item-Namen mit ausgeben", fileT: "Dateiname", doExport: "Exportieren", cancel: "Abbrechen", close: "Schließen",
+    fmts: {
+      xlsx: ["Excel (.xlsx)", "Für Excel, LibreOffice, Numbers, Google Sheets"], ods: ["OpenDocument (.ods)", "Für LibreOffice und OpenOffice"],
+      csv: ["CSV, Komma, UTF-8 (.csv)", "Für R, Python, SPSS, Stata"], csvx: ["CSV für Excel, Semikolon (.csv)", "Öffnet im deutschen Excel per Doppelklick richtig"],
+      tsv: ["TSV, Tabulator (.tsv)", "Einfach in Tabellen einfügbar"], xml: ["Excel-2003-XML (.xml)", "Für sehr alte Excel-Versionen"], json: ["JSON (.json)", "Items mit ihren Einträgen, für eigene Skripte"]
+    },
+    sheetT: "Welches Tabellenblatt?", sheetD: "Die Datei enthält mehrere Blätter.",
+    // Menü
+    reorient: "Ausrichtung umdrehen", reorientD: "Items als Zeilen ↔ Spalten neu einlesen", newTable: "Andere Datei öffnen", autosave: "Arbeitsstand im Browser merken",
+    autosaveD: "Nur auf diesem Gerät (IndexedDB), standardmäßig aus", forget: "Gespeicherte Daten löschen", forgetD: "Arbeitsstand und Einstellungen aus diesem Browser entfernen",
+    shortcuts: "Tastenkürzel", about: "Über jellytable & Datenschutz",
+    aboutD: "<p><b>jellytable</b> ist ein kleines Werkzeug zum Durchblättern von Umfrage-Tabellen, im Stil von jellyqda.</p><p><b>Datenschutz:</b> Dateien werden nur in diesem Browser-Tab gelesen und geschrieben. Es gibt keinen Server, keine Cookies und kein Tracking. Im Browser gespeichert werden nur deine Einstellungen (Sprache, Hell/Dunkel, Ausrichtung) und – nur wenn du es einschaltest – der Arbeitsstand.</p><p>Freie Software unter MIT-Lizenz.</p>",
+    sc: [["Strg + S", "Speichern"], ["Strg + O", "Datei öffnen"], ["Strg + Z / Strg + Y", "Rückgängig / Wiederholen"], ["Alt + ↑ / ↓", "Vorheriges / nächstes Item"], ["Strg + E", "Exportieren"]],
+    // Meldungen
+    err: { xls: "Das alte Excel-Format .xls kann jellytable nicht lesen. Bitte in Excel oder LibreOffice als .xlsx oder .csv speichern.", html: "Diese Datei ist eine Webseite (HTML), keine echte Tabelle. Bitte als .xlsx oder .csv speichern.", unknown: "Dieses Dateiformat wird nicht erkannt.", notzip: "Die Datei ist beschädigt.", zip64: "Die Datei ist zu groß (ZIP64).", xml: "Die Datei ist beschädigt (XML).", noworkbook: "In der Datei wurde keine Tabelle gefunden.", method: "Unbekannte Komprimierung.", nodecomp: "Dein Browser kann diese Datei nicht entpacken. Bitte einen aktuellen Browser verwenden.", empty: "Die Tabelle ist leer." },
+    loaded: (n, k) => n + " Items mit je bis zu " + k + " Einträgen geladen", undone: "Rückgängig gemacht", redone: "Wiederholt", nothing: "Nichts zum Rückgängigmachen",
+    inserted: "Leerer Eintrag eingefügt", removed: "Eintrag entfernt", forgotten: "Gespeicherte Daten gelöscht", leave: "Ungespeicherte Änderungen gehen verloren.",
+    sampleName: "beispiel-umfrage"
+  },
+  en: {
+    tagline: "jellyqda goes table", open: "Open", save: "Save", export: "Export", undo: "Undo", redo: "Redo",
+    langBtn: "DE", langTitle: "Auf Deutsch umschalten", theme: "Switch light/dark", more: "More options", items: "Items",
+    unsaved: "unsaved", saved: "Saved ✓", fileNameTitle: "File name (used for saving and export)",
+    joke: "jellyqda goes table", heroT: "Browse survey tables in peace",
+    heroD: "CSV and Excel exports from surveys are often hard to read. jellytable shows you one item at a time: items on the left, all entries on the right – to read, edit and save again.",
+    privT: "Privacy first: your data never leaves your computer.",
+    privD: "jellytable runs entirely in this browser tab – no upload, no server, no cookies, no tracking. Works offline, too (download the file and double-click it).",
+    s1: "How are the items laid out?", colsT: "Items as columns", colsD: "Each column is an item (question), each row a person. Typical for survey exports.",
+    rowsT: "Items as rows", rowsD: "Each row is an item, its entries sit side by side.", headerCols: "First row contains the item names", headerRows: "First column contains the item names",
+    s2: "Load a file", drop: "Drag a table here", or: "or", pick: "Choose file", sample: "Load sample survey",
+    loading: "Loading …", restoreT: "Carry on?", restoreD: (n, d) => "“" + n + "” from " + d + " is still stored in this browser.", restore: "Restore", discard: "Discard",
+    f1: ["Browse items", "Navigate on the left, all entries of an item on the right – with frequencies at a glance."],
+    f2: ["Edit", "Change entries, insert or remove empty entries, rename items – everything can be undone."],
+    f3: ["Save & export", "Excel (.xlsx), OpenDocument (.ods), CSV, TSV, Excel 2003 XML and JSON."],
+    f4: ["Offline & private", "One single HTML file, no libraries, no connection to the internet."],
+    foot: 'jellytable · free under the MIT licence · inspired by <a href="https://thedivingshellyfish.github.io/jellyqda/">jellyqda</a>',
+    itemsT: "Items", itemSearch: "Search items …", addItem: "Add item", rename: "Rename", delItem: "Delete item", up: "Move up", down: "Move down",
+    delItemQ: (n) => "Delete item “" + n + "” with all its entries?", newItem: "New item",
+    col: "Column", row: "Row", entries: "entries", filled: "filled", empty: "empty", distinct: "distinct values",
+    idShow: "Show identifier", none: "none", filter: "Search entries …", hits: (n) => n + " matches",
+    hint: "＋ inserts an empty entry at that point, − removes an entry. The following entries of this item move along – the other items stay as they are.",
+    addFirst: "Entry at the start", addLast: "Entry at the end", insertHere: "Insert an empty entry here", delEntry: "Remove entry",
+    page: (a, b, n) => a + "–" + b + " of " + n, prev: "Previous", next: "Next", showItems: "Show items",
+    noItems: "No items found.",
+    expT: "Export", fmtT: "Format", orientT: "Item layout", namesT: "Include item names", fileT: "File name", doExport: "Export", cancel: "Cancel", close: "Close",
+    fmts: {
+      xlsx: ["Excel (.xlsx)", "For Excel, LibreOffice, Numbers, Google Sheets"], ods: ["OpenDocument (.ods)", "For LibreOffice and OpenOffice"],
+      csv: ["CSV, comma, UTF-8 (.csv)", "For R, Python, SPSS, Stata"], csvx: ["CSV for Excel, semicolon (.csv)", "Opens correctly in German/European Excel by double-click"],
+      tsv: ["TSV, tab (.tsv)", "Easy to paste into spreadsheets"], xml: ["Excel 2003 XML (.xml)", "For very old Excel versions"], json: ["JSON (.json)", "Items with their entries, for your own scripts"]
+    },
+    sheetT: "Which sheet?", sheetD: "The file contains several sheets.",
+    reorient: "Flip layout", reorientD: "Re-read items as rows ↔ columns", newTable: "Open another file", autosave: "Remember work in this browser",
+    autosaveD: "Only on this device (IndexedDB), off by default", forget: "Delete stored data", forgetD: "Remove work and settings from this browser",
+    shortcuts: "Keyboard shortcuts", about: "About jellytable & privacy",
+    aboutD: "<p><b>jellytable</b> is a small tool for browsing survey tables, in the style of jellyqda.</p><p><b>Privacy:</b> files are only read and written in this browser tab. There is no server, no cookies and no tracking. Only your settings (language, light/dark, layout) are stored in the browser – and, only if you switch it on, your work.</p><p>Free software under the MIT licence.</p>",
+    sc: [["Ctrl + S", "Save"], ["Ctrl + O", "Open a file"], ["Ctrl + Z / Ctrl + Y", "Undo / redo"], ["Alt + ↑ / ↓", "Previous / next item"], ["Ctrl + E", "Export"]],
+    err: { xls: "jellytable can’t read the old Excel format .xls. Please save it as .xlsx or .csv in Excel or LibreOffice.", html: "This file is a web page (HTML), not a real spreadsheet. Please save it as .xlsx or .csv.", unknown: "This file format isn’t recognised.", notzip: "The file is damaged.", zip64: "The file is too large (ZIP64).", xml: "The file is damaged (XML).", noworkbook: "No table was found in the file.", method: "Unknown compression.", nodecomp: "Your browser can’t unpack this file. Please use a current browser.", empty: "The table is empty." },
+    loaded: (n, k) => n + " items with up to " + k + " entries each loaded", undone: "Undone", redone: "Redone", nothing: "Nothing to undo",
+    inserted: "Empty entry inserted", removed: "Entry removed", forgotten: "Stored data deleted", leave: "Unsaved changes will be lost.",
+    sampleName: "sample-survey"
+  }
+};
