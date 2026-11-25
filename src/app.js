@@ -9,14 +9,14 @@ const PAGE = 100;
 
 /* ---------- Einstellungen (nur Einstellungen, keine Daten) ---------- */
 const PKEY = "jellytable-prefs";
-let P = { theme: null, lang: null, orient: "cols", header: true, autosave: false, lastFmt: null };
+let P = { theme: null, lang: null, orient: "cols", autosave: false, lastFmt: null, sideW: 300, fit: true };
 try { Object.assign(P, JSON.parse(localStorage.getItem(PKEY) || "{}")); } catch (e) {}
 const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(P)); } catch (e) {} };
 if (!P.lang) P.lang = /^de/i.test(navigator.language || "") ? "de" : "en";
 let T = TEXT[P.lang];
 
 /* ---------- Zustand ---------- */
-const S = { items: [], orient: "cols", header: true, fileName: "", srcType: "", delim: ",", encoding: "", sheet: "", cur: 0, page: 0, idItem: -1, filter: "", itemFilter: "", dirty: false, loaded: false, sideOpen: false, renaming: -1 };
+const S = { items: [], orient: "cols", h: 0, d: 1, setup: null, fileName: "", srcType: "", delim: ",", encoding: "", sheet: "", cur: 0, page: 0, idItem: -1, filter: "", itemFilter: "", dirty: false, loaded: false, sideOpen: false, renaming: -1 };
 const U = { undo: [], redo: [] };
 
 /* ---------- Icons & Logo ---------- */
@@ -51,37 +51,48 @@ const itemName = (it, i) => it.name !== "" ? it.name : (S.orient === "cols" ? T.
 const maxLen = () => S.items.reduce((a, it) => Math.max(a, it.values.length), 0);
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 1900); }
 function setDirty(v) { S.dirty = v; renderBarState(); if (v) autosaveSoon(); }
-function fromGrid(grid, orient, header) {
-  if (orient === "cols") {
-    const w = grid.reduce((a, r) => Math.max(a, r.length), 0), body = header ? grid.slice(1) : grid;
-    return Array.from({ length: w }, (_, j) => ({ name: header ? (grid[0][j] || "") : "", label: F.colName(j), values: body.map((r) => r[j] ?? "") }));
-  }
-  return grid.map((r, i) => ({ name: header ? (r[0] || "") : "", label: String(i + 1), values: header ? r.slice(1) : r.slice() }));
+const transpose = (g) => {
+  const w = g.reduce((a, r) => Math.max(a, r.length), 0), out = [];
+  for (let j = 0; j < w; j++) { const r = new Array(g.length); for (let i = 0; i < g.length; i++) r[i] = g[i][j] ?? ""; out.push(r); }
+  return out;
+};
+// Jedes Item ist eine "Linie" der Tabelle (Spalte bei Items als Spalten, Zeile bei Items als Zeilen).
+// h = Position der Item-Namen in der Linie (-1 = keine), d = Beginn der Einträge;
+// alle Positionen vor d außer h sind Item-Details (meta) und bleiben beim Export erhalten.
+function fromGrid(grid, orient, h, d) {
+  const lines = orient === "rows" ? grid : transpose(grid);
+  return lines.map((ln, i) => ({
+    name: h >= 0 ? String(ln[h] ?? "") : "", meta: ln.slice(0, d).filter((_, k) => k !== h).map((v) => v ?? ""),
+    label: orient === "cols" ? F.colName(i) : String(i + 1), values: ln.slice(d).map((v) => v ?? "")
+  }));
 }
-function toGrid(orient, withNames) {
+function itemLines(withHead) {
   const n = maxLen();
-  if (orient === "cols") {
-    const out = withNames ? [S.items.map((it) => it.name)] : [];
-    for (let r = 0; r < n; r++) out.push(S.items.map((it) => it.values[r] ?? ""));
-    return out;
-  }
-  return S.items.map((it) => { const v = it.values.slice(); while (v.length < n) v.push(""); return withNames ? [it.name].concat(v) : v; });
+  return S.items.map((it) => {
+    const head = [];
+    if (withHead) { let m = 0; for (let k = 0; k < S.d; k++) head.push(k === S.h ? it.name : ((it.meta || [])[m++] ?? "")); }
+    const v = it.values.slice(); while (v.length < n) v.push("");
+    return head.concat(v);
+  });
 }
+const toGrid = (orient, withHead) => { const L = itemLines(withHead); return orient === "rows" ? L : transpose(L); };
+const metaText = (it) => (it.meta || []).filter((v) => v !== "").join(" · ");
 
 /* ---------- Undo ---------- */
 function pushUndo(op) { U.undo.push(op); if (U.undo.length > 500) U.undo.shift(); U.redo = []; renderBarState(); }
 const snapItem = (i) => ({ kind: "item", i, name: S.items[i].name, values: S.items[i].values.slice() });
-const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, values: it.values })), cur: S.cur });
+const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })), cur: S.cur, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem });
 function applyOp(op) {   // gibt die Gegen-Operation zurück
   if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] }; S.items[op.i].values[op.k] = op.v; S.cur = op.i; return inv; }
   if (op.kind === "item") { const inv = snapItem(op.i); S.items[op.i].name = op.name; S.items[op.i].values = op.values; S.cur = op.i; return inv; }
-  const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1); return inv;
+  const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1);
+  S.orient = op.orient; S.h = op.h; S.d = op.d; S.idItem = op.idItem; return inv;
 }
 function undo(redo) {
   const from = redo ? U.redo : U.undo, to = redo ? U.undo : U.redo;
   if (!from.length) { toast(T.nothing); return; }
-  to.push(applyOp(from.pop()));
-  setDirty(true); renderSide(); renderMain(); toast(redo ? T.redone : T.undone);
+  const op = from.pop(); to.push(applyOp(op));
+  setDirty(true); if (op.kind === "all") renderBrowser(); else { renderSide(); renderMain(); } toast(redo ? T.redone : T.undone);
 }
 
 /* ---------- Laden ---------- */
@@ -93,10 +104,8 @@ async function loadFile(file) {
     if (book.sheets.length > 1) { idx = await chooseSheet(book.sheets); if (idx == null) return; }
     const rows = F.rectangular(await book.load(idx));
     if (!rows.length) throw F.err("empty");
-    S.items = fromGrid(rows, P.orient, P.header);
-    S.orient = P.orient; S.header = P.header;
     S.fileName = file.name.replace(/\.[^.]+$/, ""); S.srcType = book.type; S.delim = book.delim || ","; S.encoding = book.encoding || ""; S.sheet = book.sheets.length > 1 ? book.sheets[idx] : "";
-    afterLoad();
+    openSetup(rows, P.orient, null, false);
   } catch (e) {
     console.error(e);
     if (S.loaded) { S.loaded = false; render(); }
@@ -104,8 +113,8 @@ async function loadFile(file) {
     $("loaderr").hidden = false;
   } finally { const b = $("busy"); if (b) b.hidden = true; }
 }
-function afterLoad() {
-  S.loaded = true; S.cur = 0; S.page = 0; S.idItem = -1; S.filter = ""; S.itemFilter = ""; U.undo = []; U.redo = [];
+function afterLoad(idItem) {
+  S.loaded = true; S.setup = null; S.cur = 0; S.page = 0; S.idItem = idItem ?? -1; S.filter = ""; S.itemFilter = ""; U.undo = []; U.redo = [];
   S.dirty = false; render(); toast(T.loaded(S.items.length, maxLen()));
 }
 function chooseSheet(names) {
@@ -146,6 +155,79 @@ function sampleCSV() {
   return F.toCSV([head].concat(rows), ";", false);
 }
 
+/* ---------- Schritt 3: Bezeichnungen festlegen ---------- */
+function guessSetup(grid, orient) {
+  const L = orient === "rows" ? grid : transpose(grid), len = L.reduce((a, l) => Math.max(a, l.length), 0), at = (k) => L.map((l) => l[k] ?? "");
+  let h = 0;
+  const first = at(0).filter((v) => v !== "");
+  if (!first.length || first.filter((v) => F.isNumber(v)).length > first.length * 0.6) h = -1;
+  let d = h + 1;
+  for (let k = d; k < Math.min(8, len); k++) if (at(k).some((v) => /^\{"ImportId"/.test(v))) d = k + 1;   // Qualtrics: 3 Kopfzeilen
+  let lab = -1;
+  if (h >= 0) lab = at(h).findIndex((n) => /^(id|ids|response ?id|respondent ?id|participant ?id|case ?id|lfdn|fall(nummer)?|nr\.?|code|teilnehmer(-?id)?|person(en)?-?id|serial)$/i.test(String(n).trim()));
+  if (lab < 0 && L.length > 1) { const v = (L[0] || []).slice(d); if (v.length > 1 && v.every((x) => x !== "") && new Set(v).size === v.length) lab = 0; }
+  return { h, d: Math.max(0, Math.min(d, len - 1)), lab };
+}
+function openSetup(grid, orient, cfg, reconf) {
+  const g = cfg || guessSetup(grid, orient);
+  S.setup = { grid, orient, h: g.h, d: g.d, lab: g.lab, reconf, L: orient === "rows" ? grid : transpose(grid) };
+  if (S.setup.d <= S.setup.h) S.setup.d = S.setup.h + 1;
+  render(); window.scrollTo(0, 0);
+}
+function setupOrient(o) {
+  const u = S.setup; if (u.orient === o) return;
+  const g = guessSetup(u.grid, o);
+  Object.assign(u, { orient: o, h: g.h, d: g.d, lab: g.lab, L: o === "rows" ? u.grid : transpose(u.grid) });
+  renderSetup();
+}
+function renderSetup() {
+  const u = S.setup, rows = u.orient === "rows", L = u.L, len = L.reduce((a, l) => Math.max(a, l.length), 0);
+  const posName = (k) => rows ? T.colN(F.colName(k)) : T.rowN(k + 1);
+  const itemPos = (i) => rows ? T.rowN(i + 1) : T.colN(F.colName(i));
+  const peek = (k) => { const v = L.map((l) => l[k] ?? "").filter((x) => x !== "").slice(0, 3).join(", "); return v.length > 46 ? v.slice(0, 45) + "…" : v; };
+  const opt = (v, txt, sel) => '<option value="' + v + '"' + (sel ? " selected" : "") + ">" + esc(txt) + "</option>";
+  let names = opt(-1, T.none, u.h === -1);
+  for (let k = 0; k < Math.min(len, 25); k++) names += opt(k, posName(k) + (peek(k) ? " – " + peek(k) : ""), u.h === k);
+  let data = "";
+  for (let k = u.h + 1; k < Math.min(len, u.h + 31); k++) data += opt(k, posName(k) + (peek(k) ? " – " + peek(k) : ""), u.d === k);
+  let lab = opt(-1, T.none, u.lab === -1);
+  for (let i = 0; i < Math.min(L.length, 300); i++) { const n = u.h >= 0 ? String(L[i][u.h] ?? "") : ""; lab += opt(i, itemPos(i) + (n ? " – " + n : ""), u.lab === i); }
+  // Vorschau
+  const R = Math.min(u.grid.length, 14), C = Math.min(u.grid.reduce((a, r) => Math.max(a, r.length), 0), 10);
+  let tb = "<tr><th></th>" + Array.from({ length: C }, (_, c) => "<th>" + F.colName(c) + "</th>").join("") + "</tr>";
+  for (let r = 0; r < R; r++) {
+    tb += "<tr><th>" + (r + 1) + "</th>";
+    for (let c = 0; c < C; c++) {
+      const p = rows ? c : r, i = rows ? r : c, v = String(u.grid[r][c] ?? "");
+      const cls = (p === u.h ? "nm" : p < u.d ? "mt" : "dt") + (i === u.lab ? " lb" : "");
+      tb += '<td class="' + cls + '" title="' + esc(v) + '">' + esc(v.length > 40 ? v.slice(0, 39) + "…" : v) + "</td>";
+    }
+    tb += "</tr>";
+  }
+  const metaN = u.d - (u.h >= 0 && u.h < u.d ? 1 : 0);
+  $("view").innerHTML = '<div class="start">' +
+    '<section class="panel step"><div class="sn">3</div><div><h2>' + T.s3 + '</h2><p class="muted" style="margin:-4px 0 14px">' + T.s3D + "</p>" +
+    '<div class="sugrid">' +
+      '<div class="field" style="margin:0">' + T.orientT + '<div class="seg2"><button class="' + (!rows ? "on" : "") + '" data-act="su-orient" data-k="cols">' + T.colsT + '</button><button class="' + (rows ? "on" : "") + '" data-act="su-orient" data-k="rows">' + T.rowsT + "</button></div></div>" +
+      '<label class="field" style="margin:0"><span><i class="lg nm"></i>' + T.namesAt + '</span><select id="su-names">' + names + "</select></label>" +
+      '<label class="field" style="margin:0"><span><i class="lg dt"></i>' + T.dataAt + '</span><select id="su-data">' + data + "</select></label>" +
+      '<label class="field" style="margin:0"><span><i class="lg lb"></i>' + T.labelAt + '</span><select id="su-lab">' + lab + "</select></label>" +
+    "</div>" +
+    '<div class="legend"><span><i class="lg nm"></i>' + T.legName + '</span><span><i class="lg mt"></i>' + T.legMeta + '</span><span><i class="lg dt"></i>' + T.legData + '</span><span><i class="lg lb"></i>' + T.legLabel + "</span></div>" +
+    '<div class="prevwrap"><table class="prev">' + tb + "</table></div>" +
+    '<p class="small muted">' + T.previewNote(R, C, u.grid.length, u.grid.reduce((a, r) => Math.max(a, r.length), 0)) + "</p>" +
+    '<div class="sum">→ ' + T.sum(L.length, Math.max(0, len - u.d), rows) + (metaN > 0 ? "<br>" + T.sumMeta(metaN, rows) : "") + "</div>" +
+    '<div class="btnrow2"><button class="btn ghost" data-act="su-cancel">' + T.back + '</button><button class="btn primary" data-act="su-apply">' + T.apply + "</button></div>" +
+    "</div></section></div>";
+}
+function applySetup() {
+  const u = S.setup;
+  if (u.reconf) pushUndo(snapAll());
+  S.items = fromGrid(u.grid, u.orient, u.h, u.d); S.orient = u.orient; S.h = u.h; S.d = u.d;
+  if (u.reconf) { S.setup = null; S.idItem = u.lab; S.cur = Math.min(S.cur, S.items.length - 1); S.page = 0; setDirty(true); render(); }
+  else { P.orient = u.orient; savePrefs(); afterLoad(u.lab); }
+}
+
 /* ---------- Speichern / Export ---------- */
 const FMT = {
   xlsx: { ext: "xlsx", mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
@@ -156,14 +238,15 @@ const FMT = {
 const defaultFmt = () => P.lastFmt || ({ xlsx: "xlsx", ods: "ods", tsv: "tsv", xml2003: "xml", csv: S.delim === ";" ? "csvx" : "csv" }[S.srcType] || "xlsx");
 async function buildFile(fmt, orient, names) {
   const grid = toGrid(orient, names), sheet = S.sheet || S.fileName || "jellytable";
-  const bold = names ? (orient === "cols" ? { boldRow0: true } : { boldCol0: true }) : {};
+  const hd = names ? S.d : 0, hn = names ? S.h : -1;
+  const bold = orient === "cols" ? { boldRow: hn, freezeRows: hd } : { boldCol: hn, freezeCols: hd };
   if (fmt === "xlsx") return F.writeXLSX(grid, sheet, bold);
   if (fmt === "ods") return F.writeODS(grid, sheet);
   if (fmt === "csv") return new Blob([F.toCSV(grid, ",", false)]);
   if (fmt === "csvx") return new Blob([F.toCSV(grid, ";", true)]);
   if (fmt === "tsv") return new Blob([F.toCSV(grid, "\t", false)]);
   if (fmt === "xml") return new Blob([F.writeXML2003(grid, sheet)]);
-  return new Blob([JSON.stringify({ file: S.fileName, layout: orient, items: S.items.map((it, i) => ({ name: itemName(it, i), values: it.values })) }, null, 2)]);
+  return new Blob([JSON.stringify({ file: S.fileName, layout: orient, items: S.items.map((it, i) => ({ name: itemName(it, i), details: it.meta || [], values: it.values })) }, null, 2)]);
 }
 async function download(fmt, orient, names, base) {
   const blob = new Blob([await buildFile(fmt, orient, names)], { type: FMT[fmt].mime });
@@ -173,14 +256,14 @@ async function download(fmt, orient, names, base) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   P.lastFmt = fmt; savePrefs(); setDirty(false); toast(T.saved + "  " + name);
 }
-const quickSave = () => S.loaded && download(defaultFmt(), S.orient, S.header);
+const quickSave = () => S.loaded && download(defaultFmt(), S.orient, true);
 function exportDialog() {
   if (!S.loaded) return;
   const d = $("dlg"), cur = defaultFmt();
   d.innerHTML = '<form method="dialog"><div class="dh"><h2>' + T.expT + '</h2></div><div class="db"><div class="muted small" style="margin-bottom:6px">' + T.fmtT + '</div><div class="fmts">' +
     Object.keys(FMT).map((k) => '<label class="fmt"><input type="radio" name="fmt" value="' + k + '"' + (k === cur ? " checked" : "") + "><span><b>" + T.fmts[k][0] + "</b><small>" + T.fmts[k][1] + "</small></span></label>").join("") + "</div>" +
     '<label class="field">' + T.orientT + '<select name="orient"><option value="cols"' + (S.orient === "cols" ? " selected" : "") + ">" + T.colsT + '</option><option value="rows"' + (S.orient === "rows" ? " selected" : "") + ">" + T.rowsT + "</option></select></label>" +
-    '<label class="check"><input type="checkbox" name="names"' + (S.header ? " checked" : "") + ">" + T.namesT + "</label>" +
+    '<label class="check"><input type="checkbox" name="names" checked>' + T.namesT + "</label>" +
     '<label class="field">' + T.fileT + '<input name="base" value="' + esc(S.fileName || "jellytable") + '" spellcheck="false"></label></div>' +
     '<div class="df"><button class="btn ghost" value="cancel">' + T.cancel + '</button><button class="btn primary" value="ok">' + ICON.export + " " + T.doExport + "</button></div></form>";
   d.onclick = null;
@@ -202,7 +285,7 @@ const DB = {
 function autosaveSoon() {
   if (!P.autosave || !S.loaded) return;
   clearTimeout(autosaveSoon.h);
-  autosaveSoon.h = setTimeout(() => DB.put({ items: S.items, orient: S.orient, header: S.header, fileName: S.fileName, srcType: S.srcType, delim: S.delim, sheet: S.sheet, at: new Date().toISOString() }).catch(() => {}), 800);
+  autosaveSoon.h = setTimeout(() => DB.put({ items: S.items, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem, fileName: S.fileName, srcType: S.srcType, delim: S.delim, sheet: S.sheet, at: new Date().toISOString() }).catch(() => {}), 800);
 }
 
 /* ---------- Rendern: Menüzeile ---------- */
@@ -244,7 +327,6 @@ function toggleMenu() {
 
 /* ---------- Rendern: Startseite ---------- */
 async function renderStart() {
-  const hc = P.orient === "cols" ? T.headerCols : T.headerRows;
   $("view").innerHTML = '<div class="start">' +
     '<div class="hero"><div class="row"><svg class="big" viewBox="0 0 64 64">' + LOGO.slice(LOGO.indexOf(">") + 1) + '<div><div class="joke">' + T.joke + "</div><h1>" + T.heroT + "</h1><p>" + T.heroD + "</p></div></div></div>" +
     '<div class="privacy">' + ICON.lock + "<div><b>" + T.privT + "</b>" + T.privD + "</div></div>" +
@@ -252,7 +334,7 @@ async function renderStart() {
     '<section class="panel step"><div class="sn">1</div><div><h2>' + T.s1 + '</h2><div class="orients">' +
       '<button class="orient' + (P.orient === "cols" ? " on" : "") + '" data-act="orient" data-k="cols">' + ORIENT_SVG(false) + "<span><b>" + T.colsT + "</b><small>" + T.colsD + "</small></span></button>" +
       '<button class="orient' + (P.orient === "rows" ? " on" : "") + '" data-act="orient" data-k="rows">' + ORIENT_SVG(true) + "<span><b>" + T.rowsT + "</b><small>" + T.rowsD + "</small></span></button></div>" +
-      '<label class="check"><input type="checkbox" id="hdr"' + (P.header ? " checked" : "") + ">" + hc + "</label></div></section>" +
+      "</div></section>" +
     '<section class="panel step"><div class="sn">2</div><div><h2>' + T.s2 + "</h2>" +
       '<label class="drop" id="drop"><span class="dic">🪼</span><b>' + T.drop + '</b><span class="small muted">' + T.or + '</span><span class="btn small primary">' + T.pick + "</span>" +
       '<span class="formats"><span>.csv</span><span>.tsv</span><span>.txt</span><span>.xlsx</span><span>.xlsm</span><span>.ods</span><span>Excel 2003 .xml</span></span></label>' +
@@ -265,7 +347,6 @@ async function renderStart() {
   dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
   dz.addEventListener("dragleave", () => dz.classList.remove("over"));
   dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("over"); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
-  $("hdr").addEventListener("change", (e) => { P.header = e.target.checked; savePrefs(); });
   if (P.autosave) {
     try {
       const s = await DB.get();
@@ -277,21 +358,21 @@ async function renderStart() {
 
 /* ---------- Rendern: Browser ---------- */
 function renderBrowser() {
-  $("view").innerHTML = '<div class="browser' + (S.sideOpen ? " sideopen" : "") + '" id="browser"><aside class="side"><div class="head"><div class="t"><span>' + T.itemsT + '</span><span id="icount"></span></div>' +
+  $("view").innerHTML = '<div class="browser' + (S.sideOpen ? " sideopen" : "") + '" id="browser" style="--sidew:' + P.sideW + 'px"><aside class="side"><div class="head"><div class="t"><span>' + T.itemsT + '</span><span id="icount"></span></div>' +
     '<div class="search">' + ICON.search + '<input type="search" id="isearch" placeholder="' + T.itemSearch + '" value="' + esc(S.itemFilter) + '"></div></div>' +
-    '<ul class="items" id="items"></ul><div class="foot2"><button class="btn small" data-act="additem">' + ICON.plus + " " + T.addItem + "</button></div></aside>" +
+    '<ul class="items" id="items"></ul><div class="foot2"><button class="btn small" data-act="additem">' + ICON.plus + " " + T.addItem + '</button></div><div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="' + T.resize + '" title="' + T.resize + '" tabindex="0"></div></aside>' +
     '<main class="main" id="main"></main></div>';
   renderSide(); renderMain();
 }
 function renderSide() {
   const ul = $("items"); if (!ul) return;
   const q = S.itemFilter.trim().toLowerCase(), n = maxLen() || 1;
-  const list = S.items.map((it, i) => [it, i]).filter(([it, i]) => !q || itemName(it, i).toLowerCase().includes(q));
+  const list = S.items.map((it, i) => [it, i]).filter(([it, i]) => !q || (itemName(it, i) + " " + metaText(it)).toLowerCase().includes(q));
   $("icount").textContent = S.items.length;
   ul.innerHTML = list.length ? list.map(([it, i]) => {
     const filled = it.values.filter((v) => v !== "").length;
     const nm = S.renaming === i ? '<input class="rn" id="rn" value="' + esc(it.name) + '">' : '<span class="nm' + (it.name === "" ? " ph" : "") + '">' + esc(itemName(it, i)) + "</span>";
-    return '<li class="it' + (i === S.cur ? " on" : "") + '" data-act="pick" data-i="' + i + '" title="' + esc(itemName(it, i)) + '"><span class="num">' + esc(it.label || i + 1) + "</span>" + nm +
+    return '<li class="it' + (i === S.cur ? " on" : "") + '" data-act="pick" data-i="' + i + '" title="' + esc(itemName(it, i) + (metaText(it) ? "\n" + metaText(it) : "")) + '"><span class="num">' + esc(it.label || i + 1) + "</span>" + nm +
       '<span class="fill" title="' + filled + "/" + it.values.length + " " + T.filled + '"><i style="width:' + Math.round(100 * filled / n) + '%"></i></span>' +
       '<span class="acts"><button data-act="rename" data-i="' + i + '" title="' + T.rename + '">' + ICON.pen + '</button><button data-act="delitem" data-i="' + i + '" title="' + T.delItem + '">' + ICON.trash + "</button></span></li>";
   }).join("") : '<li class="it muted">' + T.noItems + "</li>";
@@ -314,12 +395,14 @@ function renderMain() {
   const distinct = counts.size;
   let h = '<div class="ihead">' + (S.renaming === -2 ? '<input class="rn" id="rnh" value="' + esc(it.name) + '">' : '<h1 data-act="renamehead" title="' + T.rename + '">' + (it.name === "" ? '<span class="ph">' + esc(itemName(it, S.cur)) + "</span>" : esc(it.name)) + "</h1>") +
     '<button class="mini" data-act="move" data-k="-1" title="' + T.up + '">' + ICON.up + '</button><button class="mini" data-act="move" data-k="1" title="' + T.down + '">' + ICON.down + "</button></div>";
+  if (metaText(it)) h += '<p class="imeta">' + esc(metaText(it)) + "</p>";
   h += '<div class="stats"><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
   if (distinct > 0 && distinct <= 12 && filled > distinct) {
     const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true })), mx = top[0][1];
     h += '<div class="dist">' + top.map(([v, c]) => '<div class="row"><span title="' + esc(v) + '">' + esc(v) + '</span><i style="width:' + Math.max(3, Math.round(100 * c / mx)) + '%"></i><em>' + c + "</em></div>").join("") + "</div>";
   }
   h += '<div class="etools"><label>' + T.idShow + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
+    '<span class="fitsel">' + T.fitT + ' <span class="seg2 small"><button class="' + (P.fit ? "on" : "") + '" data-act="fit" data-k="1">' + T.fitOn + '</button><button class="' + (!P.fit ? "on" : "") + '" data-act="fit" data-k="0">' + T.fitOff + "</button></span></span>" +
     '<span class="grow"></span><div class="search" style="min-width:200px">' + ICON.search + '<input type="search" id="esearch" placeholder="' + T.filter + '" value="' + esc(S.filter) + '"></div></div>';
   const m = matches();
   h += m ? '<p class="hint">' + T.hits(m.length) + "</p>" : '<p class="hint">' + T.hint + "</p>";
@@ -328,7 +411,7 @@ function renderMain() {
   else { const a = S.page * PAGE; idx = []; for (let k = a; k < Math.min(n, a + PAGE); k++) idx.push(k); }
   const total = m ? m.length : n, pages = Math.max(1, Math.ceil(total / PAGE));
   if (S.page >= pages) { S.page = pages - 1; return renderMain(); }
-  const idVals = S.idItem >= 0 && S.items[S.idItem] ? S.items[S.idItem].values : null;
+  const idVals = S.idItem >= 0 && S.idItem !== S.cur && S.items[S.idItem] ? S.items[S.idItem].values : null;
   let list = "";
   if (!m) list += S.page === 0 ? '<li class="gap edge"><button class="add" data-act="ins" data-k="0">' + ICON.plus + T.addFirst + "</button></li>" : '<li class="gap"><button class="add" data-act="ins" data-k="' + idx[0] + '" title="' + T.insertHere + '">' + ICON.plus + "</button></li>";
   idx.forEach((k, j) => {
@@ -343,10 +426,14 @@ function renderMain() {
   main.querySelectorAll("textarea").forEach(fit);
   const rnh = $("rnh"); if (rnh) { rnh.focus(); rnh.select(); }
 }
-function fit(ta) { ta.style.height = "auto"; ta.style.height = Math.max(40, ta.scrollHeight + 2) + "px"; }
+function fit(ta) {   // Breite wächst mit dem Inhalt (längste Zeile), Höhe mit der Zeilenzahl
+  if (P.fit) { const w = ta.value.split("\n").reduce((a, l) => Math.max(a, Array.from(l).length), 0); ta.style.width = "min(100%, " + Math.max(14, w + 4) + "ch)"; }
+  else ta.style.width = "100%";
+  ta.style.height = "auto"; ta.style.height = Math.max(40, ta.scrollHeight + 2) + "px";
+}
 function render() {
   renderBar();
-  if (S.loaded) renderBrowser(); else renderStart();
+  if (S.setup) renderSetup(); else if (S.loaded) renderBrowser(); else renderStart();
   const m = $("menu"); if (m) m.remove();
 }
 
@@ -356,7 +443,8 @@ function deleteEntry(k) { pushUndo(snapItem(S.cur)); S.items[S.cur].values.splic
 function renameItem(i, name) { if (S.items[i].name === name) return; pushUndo(snapItem(i)); S.items[i].name = name; setDirty(true); }
 function addItem() {
   pushUndo(snapAll());
-  S.items.splice(S.cur + 1, 0, { name: T.newItem, label: "+", values: new Array(maxLen()).fill("") });
+  S.items.splice(S.cur + 1, 0, { name: T.newItem, label: "+", meta: new Array(Math.max(0, S.d - (S.h >= 0 ? 1 : 0))).fill(""), values: new Array(maxLen()).fill("") });
+  if (S.h < 0) { S.h = 0; S.d += 1; S.items.forEach((x) => { if (x.name === undefined) x.name = ""; }); }
   S.cur++; S.renaming = -2; S.page = 0; setDirty(true); renderSide(); renderMain();
 }
 function deleteItem(i) {
@@ -372,14 +460,7 @@ function moveItem(d) {
   if (S.idItem === i) S.idItem = j; else if (S.idItem === j) S.idItem = i;
   S.cur = j; setDirty(true); renderSide(); renderMain();
 }
-function pick(i) { if (i === S.cur) return; S.cur = i; S.page = 0; S.filter = ""; S.renaming = -1; if (S.idItem === i) S.idItem = -1; S.sideOpen = false; const b = $("browser"); if (b) b.classList.remove("sideopen"); renderSide(); renderMain(); $("main").scrollTop = 0; }
-function reorient() {
-  const grid = toGrid(S.orient, S.header), next = S.orient === "cols" ? "rows" : "cols";
-  pushUndo(snapAll());
-  S.items = fromGrid(grid, next, S.header); S.orient = next; S.cur = 0; S.page = 0; S.idItem = -1;
-  setDirty(true); render();
-}
-
+function pick(i) { if (i === S.cur) return; S.cur = i; S.page = 0; S.filter = ""; S.renaming = -1; S.sideOpen = false; const b = $("browser"); if (b) b.classList.remove("sideopen"); renderSide(); renderMain(); $("main").scrollTop = 0; }
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click", async (e) => {
   const menu = $("menu");
@@ -397,8 +478,8 @@ document.addEventListener("click", async (e) => {
   else if (a === "theme") { P.theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light"; savePrefs(); applyTheme(); renderBar(); }
   else if (a === "menu") toggleMenu();
   else if (a === "orient") { P.orient = k; savePrefs(); renderStart(); }
-  else if (a === "sample") { const f = new File([sampleCSV()], T.sampleName + ".csv", { type: "text/csv" }); P.orient = "cols"; P.header = true; savePrefs(); loadFile(f); }
-  else if (a === "restore") { const s = await DB.get(); if (s) { Object.assign(S, { items: s.items, orient: s.orient, header: s.header, fileName: s.fileName, srcType: s.srcType, delim: s.delim, sheet: s.sheet, encoding: "" }); afterLoad(); S.dirty = true; renderBarState(); } }
+  else if (a === "sample") { const f = new File([sampleCSV()], T.sampleName + ".csv", { type: "text/csv" }); P.orient = "cols"; savePrefs(); loadFile(f); }
+  else if (a === "restore") { const s = await DB.get(); if (s) { Object.assign(S, { items: s.items, orient: s.orient, h: s.h ?? 0, d: s.d ?? 1, fileName: s.fileName, srcType: s.srcType, delim: s.delim, sheet: s.sheet, encoding: "" }); afterLoad(s.idItem); S.dirty = true; renderBarState(); } }
   else if (a === "discard") { await DB.clear(); $("restore").innerHTML = ""; }
   else if (a === "side") { S.sideOpen = !S.sideOpen; $("browser").classList.toggle("sideopen", S.sideOpen); }
   else if (a === "pick" && !e.target.closest(".acts") && !e.target.closest("input")) pick(i);
@@ -410,7 +491,11 @@ document.addEventListener("click", async (e) => {
   else if (a === "ins") insertEntry(+k);
   else if (a === "del") deleteEntry(+k);
   else if (a === "page") { S.page += +k; renderMain(); $("main").scrollTop = 0; }
-  else if (a === "reorient") { $("menu")?.remove(); reorient(); }
+  else if (a === "reorient") { $("menu")?.remove(); openSetup(toGrid(S.orient, true), S.orient, { h: S.h, d: S.d, lab: S.idItem }, true); }
+  else if (a === "su-orient") setupOrient(k);
+  else if (a === "su-apply") applySetup();
+  else if (a === "su-cancel") { const re = S.setup && S.setup.reconf; S.setup = null; if (!re) S.loaded = false; render(); }
+  else if (a === "fit") { P.fit = k === "1"; savePrefs(); renderMain(); }
   else if (a === "forget") { $("menu")?.remove(); await DB.clear(); try { localStorage.removeItem(PKEY); } catch (er) {} P.autosave = false; toast(T.forgotten); }
   else if (a === "shortcuts" || a === "about") { $("menu")?.remove(); info(a); }
 });
@@ -418,6 +503,9 @@ document.addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset && t.dataset.act === "autosave") { P.autosave = t.checked; savePrefs(); if (P.autosave) autosaveSoon(); else DB.clear(); }
   if (t.id === "idsel") { S.idItem = +t.value; renderMain(); }
+  if (t.id === "su-names") { const u = S.setup; u.h = +t.value; if (u.d <= u.h) u.d = u.h + 1; renderSetup(); }
+  if (t.id === "su-data") { S.setup.d = +t.value; renderSetup(); }
+  if (t.id === "su-lab") { S.setup.lab = +t.value; renderSetup(); }
   if (t.id === "fname") { S.fileName = t.value.trim() || "jellytable"; renderBarState(); autosaveSoon(); }
   if (t.tagName === "TEXTAREA" && t.dataset.k != null) {
     const k = +t.dataset.k, before = t.dataset.before;
@@ -453,6 +541,19 @@ document.addEventListener("focusout", (e) => {
 window.addEventListener("beforeunload", (e) => { if (S.dirty && !P.autosave) { e.preventDefault(); e.returnValue = T.leave; } });
 document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("drop", (e) => { if (e.target.closest && e.target.closest("#drop")) return; e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files[0]; if (f && (!S.dirty || confirm(T.leave))) { if (!S.loaded) loadFile(f); else { S.loaded = false; render(); loadFile(f); } } });
+// Breite der Item-Liste: ziehen, Pfeiltasten, Doppelklick = zurücksetzen
+const clampW = (w) => Math.max(180, Math.min(w, Math.max(240, window.innerWidth - 360)));
+function setSideW(w, persist) { P.sideW = Math.round(clampW(w)); const b = $("browser"); if (b) b.style.setProperty("--sidew", P.sideW + "px"); if (persist) savePrefs(); }
+document.addEventListener("pointerdown", (e) => {
+  const r = e.target.closest && e.target.closest("#resizer"); if (!r) return;
+  e.preventDefault(); r.setPointerCapture(e.pointerId); r.classList.add("drag"); document.body.classList.add("resizing");
+  const x0 = e.clientX, w0 = P.sideW;
+  const mv = (ev) => setSideW(w0 + ev.clientX - x0, false);
+  const up = () => { r.removeEventListener("pointermove", mv); r.classList.remove("drag"); document.body.classList.remove("resizing"); savePrefs(); };
+  r.addEventListener("pointermove", mv); r.addEventListener("pointerup", up, { once: true }); r.addEventListener("pointercancel", up, { once: true });
+});
+document.addEventListener("dblclick", (e) => { if (e.target.closest && e.target.closest("#resizer")) setSideW(300, true); });
+document.addEventListener("keydown", (e) => { if (e.target.id === "resizer" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setSideW(P.sideW + (e.key === "ArrowRight" ? 20 : -20), true); } });
 function info(kind) {
   const d = $("dlg");
   d.innerHTML = '<div class="dh"><h2>' + (kind === "about" ? T.about : T.shortcuts) + '</h2></div><div class="db">' +

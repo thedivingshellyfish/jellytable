@@ -13,7 +13,9 @@ Survey tools export CSV or Excel files that are hard to read: dozens of columns,
 - 🔒 **Privacy first:** everything happens in your browser tab. No upload, no server, no account, no cookies, no tracking.
 - ✈️ **Works offline:** jellytable is **one single HTML file** without libraries. Download it, double-click it, done.
 - 🧭 **Items as columns or rows:** you choose how your table is laid out (typical survey export: one column per question, one row per person).
+- 🏷️ **You decide where the labels are:** a preview shows which row (or column) holds the item names, where the entries start and which column labels the entries (e.g. participant ID). Extra header rows – such as the question text and import IDs in Qualtrics exports – are kept as *item details* and exported again unchanged.
 - 🔎 **Browse:** item list with search and fill level, entries with frequencies for closed questions, an identifier column of your choice (e.g. participant ID) next to each entry, search within entries.
+- ↔️ **Comfortable reading:** drag the edge of the item list to make it wider or narrower (remembered); entry boxes grow with their content (or switch to full width).
 - ✏️ **Edit:** change entries, **＋** inserts an empty entry anywhere (also at the start and end), **−** removes an entry, rename / add / delete / move items. Undo and redo for everything.
 - 💾 **Save & export:** Excel (`.xlsx`), OpenDocument (`.ods`), CSV (comma, UTF-8), CSV for Excel (semicolon, with BOM), TSV, Excel 2003 XML, JSON – as items in columns or rows.
 - 🌙 **Light and dark mode**, 🌐 **English and German** interface.
@@ -23,7 +25,11 @@ Survey tools export CSV or Excel files that are hard to read: dozens of columns,
 - **Online:** open the GitHub Pages site of this repository (see *Publish* below).
 - **Offline:** download [`index.html`](index.html) (e.g. *Raw → Save as…*) and open it in your browser. Nothing else is needed.
 
-Then: choose whether your items are columns or rows → drop your file → browse. **Save** (Ctrl+S) writes the file in its original format; **Export** (Ctrl+E) lets you choose format and layout. In the browser, “saving” means downloading the file – your original file is never changed.
+Then: **1** choose whether your items are columns or rows → **2** drop your file → **3** check the preview and set where the item names, the entries and the entry labels are → browse. You can change step 3 later at any time (⋯ menu → *Layout & labels*).
+
+<img src="docs/screenshot-setup.png" alt="Step 3: preview with item names in row 1, two further header rows kept as item details, entries from row 4, entry labels in column A" width="1100">
+
+ **Save** (Ctrl+S) writes the file in its original format; **Export** (Ctrl+E) lets you choose format and layout. In the browser, “saving” means downloading the file – your original file is never changed.
 
 ### Supported formats
 

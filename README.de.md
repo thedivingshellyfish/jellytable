@@ -13,7 +13,9 @@ Umfrage-Tools exportieren CSV- oder Excel-Dateien, die schwer zu lesen sind: dut
 - 🔒 **Privatsphäre zuerst:** Alles passiert in deinem Browser-Tab. Kein Upload, kein Server, kein Konto, keine Cookies, kein Tracking.
 - ✈️ **Funktioniert offline:** jellytable ist **eine einzige HTML-Datei** ohne Bibliotheken. Herunterladen, doppelklicken, fertig.
 - 🧭 **Items als Spalten oder Zeilen:** Du legst fest, wie deine Tabelle aufgebaut ist (typischer Umfrage-Export: eine Spalte pro Frage, eine Zeile pro Person).
+- 🏷️ **Du bestimmst, wo die Bezeichnungen stehen:** Eine Vorschau zeigt, in welcher Zeile (oder Spalte) die Item-Namen stehen, wo die Einträge beginnen und welche Spalte die Einträge bezeichnet (z. B. Personen-ID). Zusätzliche Kopfzeilen – etwa Fragetext und Import-IDs in Qualtrics-Exporten – bleiben als *Item-Details* erhalten und werden unverändert mit exportiert.
 - 🔎 **Durchblättern:** Item-Liste mit Suche und Füllstand, Einträge mit Häufigkeiten bei geschlossenen Fragen, eine Kennung deiner Wahl (z. B. Teilnehmenden-ID) neben jedem Eintrag, Suche in den Einträgen.
+- ↔️ **Angenehm lesen:** Den Rand der Item-Liste ziehen, um sie breiter oder schmaler zu machen (wird gemerkt); Eintrags-Boxen wachsen mit ihrem Inhalt (oder auf volle Breite umschalten).
 - ✏️ **Bearbeiten:** Einträge ändern, **＋** fügt überall einen leeren Eintrag ein (auch am Anfang und Ende), **−** entfernt einen Eintrag, Items umbenennen / hinzufügen / löschen / verschieben. Rückgängig und Wiederholen für alles.
 - 💾 **Speichern & Export:** Excel (`.xlsx`), OpenDocument (`.ods`), CSV (Komma, UTF-8), CSV für Excel (Semikolon, mit BOM), TSV, Excel-2003-XML, JSON – mit Items als Spalten oder Zeilen.
 - 🌙 **Hell- und Dunkelmodus**, 🌐 Oberfläche auf **Deutsch und Englisch**.
@@ -23,7 +25,11 @@ Umfrage-Tools exportieren CSV- oder Excel-Dateien, die schwer zu lesen sind: dut
 - **Online:** die GitHub-Pages-Seite dieses Repos öffnen (siehe *Veröffentlichen* unten).
 - **Offline:** [`index.html`](index.html) herunterladen (z. B. *Raw → Speichern unter …*) und im Browser öffnen. Mehr braucht es nicht.
 
-Dann: festlegen, ob die Items Spalten oder Zeilen sind → Datei hineinziehen → durchblättern. **Speichern** (Strg+S) schreibt die Datei im ursprünglichen Format; **Exportieren** (Strg+E) lässt Format und Ausrichtung wählen. Im Browser heißt „Speichern“: Die Datei wird heruntergeladen – deine Originaldatei wird nie verändert.
+Dann: **1** festlegen, ob die Items Spalten oder Zeilen sind → **2** Datei hineinziehen → **3** in der Vorschau prüfen und festlegen, wo Item-Namen, Einträge und die Bezeichnung der Einträge stehen → durchblättern. Schritt 3 lässt sich jederzeit wieder ändern (⋯-Menü → *Ausrichtung & Bezeichnungen*).
+
+<img src="docs/screenshot-setup.png" alt="Schritt 3: Vorschau mit Item-Namen in Zeile 1, zwei weiteren Kopfzeilen als Item-Details, Einträgen ab Zeile 4 und Bezeichnung in Spalte A" width="1100">
+
+ **Speichern** (Strg+S) schreibt die Datei im ursprünglichen Format; **Exportieren** (Strg+E) lässt Format und Ausrichtung wählen. Im Browser heißt „Speichern“: Die Datei wird heruntergeladen – deine Originaldatei wird nie verändert.
 
 ### Unterstützte Formate
 

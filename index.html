@@ -104,8 +104,8 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .foot a { color: var(--muted); }
 
 /* ---------- Browser-Ansicht ---------- */
-.browser { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: calc(100vh - var(--bar)); height: calc(100dvh - var(--bar)); }
-.side { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--bg2); }
+.browser { display: grid; grid-template-columns: var(--sidew, 300px) minmax(0, 1fr); height: calc(100vh - var(--bar)); height: calc(100dvh - var(--bar)); }
+.side { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--bg2); position: relative; }
 .side .head { padding: 12px; border-bottom: 1px solid var(--line); }
 .side .head .t { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .search { position: relative; }
@@ -160,7 +160,7 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .entry .no { font-size: 12px; color: var(--muted); text-align: right; padding-top: 10px; font-variant-numeric: tabular-nums; }
 .entry .id { font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 8px; margin-top: 6px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, transparent); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry .id:empty { display: none; }
-.entry textarea { width: 100%; resize: vertical; min-height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); padding: 9px 11px; line-height: 1.45; outline: none; overflow: hidden; }
+.entry textarea { width: 100%; max-width: 100%; justify-self: start; resize: vertical; min-height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); padding: 9px 11px; line-height: 1.45; outline: none; overflow: hidden; }
 .entry textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
 .entry textarea.empty { background: transparent; border-style: dashed; }
 .entry textarea.changed { border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); }
@@ -208,6 +208,46 @@ dialog .df { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 
 .kbd { font: 600 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; color: var(--text2); }
 .shortcuts { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 14px; align-items: center; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---------- Ziehgriff Item-Liste ---------- */
+.resizer { position: absolute; top: 0; right: -5px; width: 10px; height: 100%; cursor: col-resize; z-index: 6; touch-action: none; }
+.resizer::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; border-radius: 2px; background: transparent; transition: background .15s; }
+.resizer:hover::after, .resizer.drag::after, .resizer:focus-visible::after { background: var(--accent); }
+.resizer:focus-visible { outline: none; }
+body.resizing { cursor: col-resize; user-select: none; }
+@media (max-width: 760px) { .resizer { display: none; } }
+.imeta { margin: -4px 0 12px; color: var(--text2); font-size: 14px; max-width: 900px; white-space: pre-wrap; }
+.fitsel { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text2); }
+
+/* ---------- Schritt 3: Bezeichnungen ---------- */
+.sugrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+@media (max-width: 640px) { .sugrid { grid-template-columns: 1fr; } }
+.sugrid .field > span { display: inline-flex; align-items: center; gap: 7px; }
+.seg2 { display: inline-flex; background: var(--card2); border: 1px solid var(--line2); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg2 button { border: 0; background: none; padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--muted); }
+.seg2 button.on { background: var(--accent); color: #fff; }
+.seg2.small button { padding: 3px 8px; font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 16px 0 8px; font-size: 12.5px; color: var(--text2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+i.lg { display: inline-block; width: 12px; height: 12px; border-radius: 4px; border: 1px solid var(--line2); flex: none; }
+i.lg.nm, .prev td.nm { background: color-mix(in srgb, var(--accent) 30%, var(--card)); }
+i.lg.mt, .prev td.mt { background: repeating-linear-gradient(135deg, var(--card2) 0 5px, color-mix(in srgb, var(--muted) 14%, var(--card2)) 5px 10px); }
+i.lg.dt { background: var(--card); }
+i.lg.lb { background: var(--card); box-shadow: inset 0 0 0 2px var(--accent2); }
+.prevwrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; max-height: 420px; }
+table.prev { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+.prev th { position: sticky; top: 0; background: var(--bg2); color: var(--muted); font-weight: 700; font-size: 11px; padding: 5px 8px; border-bottom: 1px solid var(--line); z-index: 1; }
+.prev tr th:first-child { position: sticky; left: 0; border-right: 1px solid var(--line); z-index: 2; }
+.prev td { padding: 5px 8px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--card); }
+.prev td.nm { font-weight: 750; }
+.prev td.mt { color: var(--muted); font-style: italic; }
+.prev td.lb { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent2) 70%, transparent); color: var(--accent2); font-weight: 650; }
+.prev td.nm.lb { color: var(--text); }
+.sum { margin: 10px 0 4px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 9%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); font-size: 14px; }
+.btnrow2 { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.field select, .field input { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+.sugrid > * { min-width: 0; }
+.seg2 { flex-wrap: wrap; }
 
 </style>
 </head>
@@ -560,13 +600,13 @@ const sheetName = (s) => (String(s || "Sheet1").replace(/[\[\]:*?/\\]/g, "-").sl
 F.writeXLSX = async function (rows, name, opt) {
   opt = opt || {};
   const cell = (v, r, c) => {
-    const ref = F.colName(c) + (r + 1), st = (opt.boldRow0 && r === 0) || (opt.boldCol0 && c === 0) ? ' s="1"' : "";
+    const ref = F.colName(c) + (r + 1), st = (opt.boldRow != null && opt.boldRow >= 0 && r === opt.boldRow) || (opt.boldCol != null && opt.boldCol >= 0 && c === opt.boldCol) ? ' s="1"' : "";
     if (v === "" || v == null) return st ? '<c r="' + ref + '"' + st + "/>" : "";
     if (F.isNumber(v)) return '<c r="' + ref + '"' + st + "><v>" + v + "</v></c>";
     return '<c r="' + ref + '"' + st + ' t="inlineStr"><is><t xml:space="preserve">' + xesc(v) + "</t></is></c>";
   };
-  const pane = opt.boldRow0 ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
-    : opt.boldCol0 ? '<sheetViews><sheetView workbookViewId="0"><pane xSplit="1" topLeftCell="B1" activePane="topRight" state="frozen"/></sheetView></sheetViews>' : "";
+  const pane = opt.freezeRows > 0 ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + opt.freezeRows + '" topLeftCell="A' + (opt.freezeRows + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+    : opt.freezeCols > 0 ? '<sheetViews><sheetView workbookViewId="0"><pane xSplit="' + opt.freezeCols + '" topLeftCell="' + F.colName(opt.freezeCols) + '1" activePane="topRight" state="frozen"/></sheetView></sheetViews>' : "";
   const w = rows.reduce((m, r) => Math.max(m, r.length), 0);
   const dim = rows.length && w ? '<dimension ref="A1:' + F.colName(w - 1) + rows.length + '"/>' : "";
   const data = rows.map((r, i) => '<row r="' + (i + 1) + '">' + r.map((v, j) => cell(v, i, j)).join("") + "</row>").join("");
@@ -617,7 +657,7 @@ window.JTText = {
     privT: "Privatsphäre zuerst: Deine Daten verlassen nie deinen Rechner.",
     privD: "jellytable läuft komplett in diesem Browser-Tab – kein Upload, kein Server, keine Cookies, kein Tracking. Funktioniert auch offline (Datei herunterladen und doppelklicken).",
     s1: "Wie sind die Items angelegt?", colsT: "Items als Spalten", colsD: "Jede Spalte ist ein Item (Frage), jede Zeile eine Person. Typisch für Umfrage-Exporte.",
-    rowsT: "Items als Zeilen", rowsD: "Jede Zeile ist ein Item, die Einträge stehen nebeneinander.", headerCols: "Erste Zeile enthält die Item-Namen", headerRows: "Erste Spalte enthält die Item-Namen",
+    rowsT: "Items als Zeilen", rowsD: "Jede Zeile ist ein Item, die Einträge stehen nebeneinander.",
     s2: "Datei laden", drop: "Tabelle hierher ziehen", or: "oder", pick: "Datei auswählen", sample: "Beispiel-Umfrage laden",
     loading: "Wird geladen …", restoreT: "Weiterarbeiten?", restoreD: (n, d) => "„" + n + "“ vom " + d + " ist noch im Browser gespeichert.", restore: "Wiederherstellen", discard: "Verwerfen",
     f1: ["Items durchblättern", "Links navigieren, rechts alle Einträge eines Items – mit Häufigkeiten auf einen Blick."],
@@ -635,7 +675,7 @@ window.JTText = {
     page: (a, b, n) => a + "–" + b + " von " + n, prev: "Zurück", next: "Weiter", showItems: "Items anzeigen",
     noItems: "Keine Items gefunden.",
     // Export
-    expT: "Exportieren", fmtT: "Format", orientT: "Ausrichtung der Items", namesT: "Item-Namen mit ausgeben", fileT: "Dateiname", doExport: "Exportieren", cancel: "Abbrechen", close: "Schließen",
+    expT: "Exportieren", fmtT: "Format", orientT: "Ausrichtung der Items", namesT: "Kopfzeilen mit ausgeben (Item-Namen und Details)", fileT: "Dateiname", doExport: "Exportieren", cancel: "Abbrechen", close: "Schließen",
     fmts: {
       xlsx: ["Excel (.xlsx)", "Für Excel, LibreOffice, Numbers, Google Sheets"], ods: ["OpenDocument (.ods)", "Für LibreOffice und OpenOffice"],
       csv: ["CSV, Komma, UTF-8 (.csv)", "Für R, Python, SPSS, Stata"], csvx: ["CSV für Excel, Semikolon (.csv)", "Öffnet im deutschen Excel per Doppelklick richtig"],
@@ -643,7 +683,16 @@ window.JTText = {
     },
     sheetT: "Welches Tabellenblatt?", sheetD: "Die Datei enthält mehrere Blätter.",
     // Menü
-    reorient: "Ausrichtung umdrehen", reorientD: "Items als Zeilen ↔ Spalten neu einlesen", newTable: "Andere Datei öffnen", autosave: "Arbeitsstand im Browser merken",
+    reorient: "Ausrichtung & Bezeichnungen", reorientD: "Item-Namen, Beginn der Einträge und Bezeichnung neu festlegen",
+    s3: "Bezeichnungen festlegen", s3D: "Prüfe in der Vorschau, wo die Item-Namen stehen und ab wo die Einträge beginnen. Die Farben zeigen, wie jellytable deine Tabelle liest.",
+    namesAt: "Item-Namen stehen in", dataAt: "Einträge beginnen in", labelAt: "Bezeichnung der Einträge (z. B. Personen-ID)",
+    rowN: (n) => "Zeile " + n, colN: (x) => "Spalte " + x,
+    legName: "Item-Namen", legMeta: "Item-Details (bleiben erhalten)", legData: "Einträge", legLabel: "Bezeichnung der Einträge",
+    previewNote: (r, c, R, C) => "Vorschau: " + r + " von " + R + " Zeilen, " + c + " von " + C + " Spalten.",
+    sum: (i, e, rows) => i + " Items mit je " + e + " Einträgen",
+    sumMeta: (k, rows) => k + (rows ? (k === 1 ? " weitere Spalte" : " weitere Spalten") : (k === 1 ? " weitere Kopfzeile" : " weitere Kopfzeilen")) + " vor den Einträgen " + (k === 1 ? "bleibt" : "bleiben") + " als Item-Details erhalten (z. B. Fragetext) und " + (k === 1 ? "wird" : "werden") + " mit exportiert.",
+    apply: "Übernehmen", back: "Zurück",
+    fitT: "Boxen:", fitOn: "an Inhalt", fitOff: "volle Breite", resize: "Breite ziehen · Doppelklick: zurücksetzen", newTable: "Andere Datei öffnen", autosave: "Arbeitsstand im Browser merken",
     autosaveD: "Nur auf diesem Gerät (IndexedDB), standardmäßig aus", forget: "Gespeicherte Daten löschen", forgetD: "Arbeitsstand und Einstellungen aus diesem Browser entfernen",
     shortcuts: "Tastenkürzel", about: "Über jellytable & Datenschutz",
     aboutD: "<p><b>jellytable</b> ist ein kleines Werkzeug zum Durchblättern von Umfrage-Tabellen, im Stil von jellyqda.</p><p><b>Datenschutz:</b> Dateien werden nur in diesem Browser-Tab gelesen und geschrieben. Es gibt keinen Server, keine Cookies und kein Tracking. Im Browser gespeichert werden nur deine Einstellungen (Sprache, Hell/Dunkel, Ausrichtung) und – nur wenn du es einschaltest – der Arbeitsstand.</p><p>Freie Software unter MIT-Lizenz.</p>",
@@ -663,7 +712,7 @@ window.JTText = {
     privT: "Privacy first: your data never leaves your computer.",
     privD: "jellytable runs entirely in this browser tab – no upload, no server, no cookies, no tracking. Works offline, too (download the file and double-click it).",
     s1: "How are the items laid out?", colsT: "Items as columns", colsD: "Each column is an item (question), each row a person. Typical for survey exports.",
-    rowsT: "Items as rows", rowsD: "Each row is an item, its entries sit side by side.", headerCols: "First row contains the item names", headerRows: "First column contains the item names",
+    rowsT: "Items as rows", rowsD: "Each row is an item, its entries sit side by side.",
     s2: "Load a file", drop: "Drag a table here", or: "or", pick: "Choose file", sample: "Load sample survey",
     loading: "Loading …", restoreT: "Carry on?", restoreD: (n, d) => "“" + n + "” from " + d + " is still stored in this browser.", restore: "Restore", discard: "Discard",
     f1: ["Browse items", "Navigate on the left, all entries of an item on the right – with frequencies at a glance."],
@@ -679,14 +728,23 @@ window.JTText = {
     addFirst: "Entry at the start", addLast: "Entry at the end", insertHere: "Insert an empty entry here", delEntry: "Remove entry",
     page: (a, b, n) => a + "–" + b + " of " + n, prev: "Previous", next: "Next", showItems: "Show items",
     noItems: "No items found.",
-    expT: "Export", fmtT: "Format", orientT: "Item layout", namesT: "Include item names", fileT: "File name", doExport: "Export", cancel: "Cancel", close: "Close",
+    expT: "Export", fmtT: "Format", orientT: "Item layout", namesT: "Include header rows (item names and details)", fileT: "File name", doExport: "Export", cancel: "Cancel", close: "Close",
     fmts: {
       xlsx: ["Excel (.xlsx)", "For Excel, LibreOffice, Numbers, Google Sheets"], ods: ["OpenDocument (.ods)", "For LibreOffice and OpenOffice"],
       csv: ["CSV, comma, UTF-8 (.csv)", "For R, Python, SPSS, Stata"], csvx: ["CSV for Excel, semicolon (.csv)", "Opens correctly in German/European Excel by double-click"],
       tsv: ["TSV, tab (.tsv)", "Easy to paste into spreadsheets"], xml: ["Excel 2003 XML (.xml)", "For very old Excel versions"], json: ["JSON (.json)", "Items with their entries, for your own scripts"]
     },
     sheetT: "Which sheet?", sheetD: "The file contains several sheets.",
-    reorient: "Flip layout", reorientD: "Re-read items as rows ↔ columns", newTable: "Open another file", autosave: "Remember work in this browser",
+    reorient: "Layout & labels", reorientD: "Set item names, start of entries and entry labels again",
+    s3: "Set the labels", s3D: "Check in the preview where the item names are and where the entries start. The colours show how jellytable reads your table.",
+    namesAt: "Item names are in", dataAt: "Entries start in", labelAt: "Entry labels (e.g. participant ID)",
+    rowN: (n) => "Row " + n, colN: (x) => "Column " + x,
+    legName: "Item names", legMeta: "Item details (kept)", legData: "Entries", legLabel: "Entry labels",
+    previewNote: (r, c, R, C) => "Preview: " + r + " of " + R + " rows, " + c + " of " + C + " columns.",
+    sum: (i, e, rows) => i + " items with " + e + " entries each",
+    sumMeta: (k, rows) => k + (rows ? (k === 1 ? " further column" : " further columns") : (k === 1 ? " further header row" : " further header rows")) + " before the entries " + (k === 1 ? "is" : "are") + " kept as item details (e.g. question text) and exported again.",
+    apply: "Apply", back: "Back",
+    fitT: "Boxes:", fitOn: "fit content", fitOff: "full width", resize: "Drag to resize · double-click: reset", newTable: "Open another file", autosave: "Remember work in this browser",
     autosaveD: "Only on this device (IndexedDB), off by default", forget: "Delete stored data", forgetD: "Remove work and settings from this browser",
     shortcuts: "Keyboard shortcuts", about: "About jellytable & privacy",
     aboutD: "<p><b>jellytable</b> is a small tool for browsing survey tables, in the style of jellyqda.</p><p><b>Privacy:</b> files are only read and written in this browser tab. There is no server, no cookies and no tracking. Only your settings (language, light/dark, layout) are stored in the browser – and, only if you switch it on, your work.</p><p>Free software under the MIT licence.</p>",
@@ -709,14 +767,14 @@ const PAGE = 100;
 
 /* ---------- Einstellungen (nur Einstellungen, keine Daten) ---------- */
 const PKEY = "jellytable-prefs";
-let P = { theme: null, lang: null, orient: "cols", header: true, autosave: false, lastFmt: null };
+let P = { theme: null, lang: null, orient: "cols", autosave: false, lastFmt: null, sideW: 300, fit: true };
 try { Object.assign(P, JSON.parse(localStorage.getItem(PKEY) || "{}")); } catch (e) {}
 const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(P)); } catch (e) {} };
 if (!P.lang) P.lang = /^de/i.test(navigator.language || "") ? "de" : "en";
 let T = TEXT[P.lang];
 
 /* ---------- Zustand ---------- */
-const S = { items: [], orient: "cols", header: true, fileName: "", srcType: "", delim: ",", encoding: "", sheet: "", cur: 0, page: 0, idItem: -1, filter: "", itemFilter: "", dirty: false, loaded: false, sideOpen: false, renaming: -1 };
+const S = { items: [], orient: "cols", h: 0, d: 1, setup: null, fileName: "", srcType: "", delim: ",", encoding: "", sheet: "", cur: 0, page: 0, idItem: -1, filter: "", itemFilter: "", dirty: false, loaded: false, sideOpen: false, renaming: -1 };
 const U = { undo: [], redo: [] };
 
 /* ---------- Icons & Logo ---------- */
@@ -751,37 +809,48 @@ const itemName = (it, i) => it.name !== "" ? it.name : (S.orient === "cols" ? T.
 const maxLen = () => S.items.reduce((a, it) => Math.max(a, it.values.length), 0);
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 1900); }
 function setDirty(v) { S.dirty = v; renderBarState(); if (v) autosaveSoon(); }
-function fromGrid(grid, orient, header) {
-  if (orient === "cols") {
-    const w = grid.reduce((a, r) => Math.max(a, r.length), 0), body = header ? grid.slice(1) : grid;
-    return Array.from({ length: w }, (_, j) => ({ name: header ? (grid[0][j] || "") : "", label: F.colName(j), values: body.map((r) => r[j] ?? "") }));
-  }
-  return grid.map((r, i) => ({ name: header ? (r[0] || "") : "", label: String(i + 1), values: header ? r.slice(1) : r.slice() }));
+const transpose = (g) => {
+  const w = g.reduce((a, r) => Math.max(a, r.length), 0), out = [];
+  for (let j = 0; j < w; j++) { const r = new Array(g.length); for (let i = 0; i < g.length; i++) r[i] = g[i][j] ?? ""; out.push(r); }
+  return out;
+};
+// Jedes Item ist eine "Linie" der Tabelle (Spalte bei Items als Spalten, Zeile bei Items als Zeilen).
+// h = Position der Item-Namen in der Linie (-1 = keine), d = Beginn der Einträge;
+// alle Positionen vor d außer h sind Item-Details (meta) und bleiben beim Export erhalten.
+function fromGrid(grid, orient, h, d) {
+  const lines = orient === "rows" ? grid : transpose(grid);
+  return lines.map((ln, i) => ({
+    name: h >= 0 ? String(ln[h] ?? "") : "", meta: ln.slice(0, d).filter((_, k) => k !== h).map((v) => v ?? ""),
+    label: orient === "cols" ? F.colName(i) : String(i + 1), values: ln.slice(d).map((v) => v ?? "")
+  }));
 }
-function toGrid(orient, withNames) {
+function itemLines(withHead) {
   const n = maxLen();
-  if (orient === "cols") {
-    const out = withNames ? [S.items.map((it) => it.name)] : [];
-    for (let r = 0; r < n; r++) out.push(S.items.map((it) => it.values[r] ?? ""));
-    return out;
-  }
-  return S.items.map((it) => { const v = it.values.slice(); while (v.length < n) v.push(""); return withNames ? [it.name].concat(v) : v; });
+  return S.items.map((it) => {
+    const head = [];
+    if (withHead) { let m = 0; for (let k = 0; k < S.d; k++) head.push(k === S.h ? it.name : ((it.meta || [])[m++] ?? "")); }
+    const v = it.values.slice(); while (v.length < n) v.push("");
+    return head.concat(v);
+  });
 }
+const toGrid = (orient, withHead) => { const L = itemLines(withHead); return orient === "rows" ? L : transpose(L); };
+const metaText = (it) => (it.meta || []).filter((v) => v !== "").join(" · ");
 
 /* ---------- Undo ---------- */
 function pushUndo(op) { U.undo.push(op); if (U.undo.length > 500) U.undo.shift(); U.redo = []; renderBarState(); }
 const snapItem = (i) => ({ kind: "item", i, name: S.items[i].name, values: S.items[i].values.slice() });
-const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, values: it.values })), cur: S.cur });
+const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })), cur: S.cur, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem });
 function applyOp(op) {   // gibt die Gegen-Operation zurück
   if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] }; S.items[op.i].values[op.k] = op.v; S.cur = op.i; return inv; }
   if (op.kind === "item") { const inv = snapItem(op.i); S.items[op.i].name = op.name; S.items[op.i].values = op.values; S.cur = op.i; return inv; }
-  const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1); return inv;
+  const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1);
+  S.orient = op.orient; S.h = op.h; S.d = op.d; S.idItem = op.idItem; return inv;
 }
 function undo(redo) {
   const from = redo ? U.redo : U.undo, to = redo ? U.undo : U.redo;
   if (!from.length) { toast(T.nothing); return; }
-  to.push(applyOp(from.pop()));
-  setDirty(true); renderSide(); renderMain(); toast(redo ? T.redone : T.undone);
+  const op = from.pop(); to.push(applyOp(op));
+  setDirty(true); if (op.kind === "all") renderBrowser(); else { renderSide(); renderMain(); } toast(redo ? T.redone : T.undone);
 }
 
 /* ---------- Laden ---------- */
@@ -793,10 +862,8 @@ async function loadFile(file) {
     if (book.sheets.length > 1) { idx = await chooseSheet(book.sheets); if (idx == null) return; }
     const rows = F.rectangular(await book.load(idx));
     if (!rows.length) throw F.err("empty");
-    S.items = fromGrid(rows, P.orient, P.header);
-    S.orient = P.orient; S.header = P.header;
     S.fileName = file.name.replace(/\.[^.]+$/, ""); S.srcType = book.type; S.delim = book.delim || ","; S.encoding = book.encoding || ""; S.sheet = book.sheets.length > 1 ? book.sheets[idx] : "";
-    afterLoad();
+    openSetup(rows, P.orient, null, false);
   } catch (e) {
     console.error(e);
     if (S.loaded) { S.loaded = false; render(); }
@@ -804,8 +871,8 @@ async function loadFile(file) {
     $("loaderr").hidden = false;
   } finally { const b = $("busy"); if (b) b.hidden = true; }
 }
-function afterLoad() {
-  S.loaded = true; S.cur = 0; S.page = 0; S.idItem = -1; S.filter = ""; S.itemFilter = ""; U.undo = []; U.redo = [];
+function afterLoad(idItem) {
+  S.loaded = true; S.setup = null; S.cur = 0; S.page = 0; S.idItem = idItem ?? -1; S.filter = ""; S.itemFilter = ""; U.undo = []; U.redo = [];
   S.dirty = false; render(); toast(T.loaded(S.items.length, maxLen()));
 }
 function chooseSheet(names) {
@@ -846,6 +913,79 @@ function sampleCSV() {
   return F.toCSV([head].concat(rows), ";", false);
 }
 
+/* ---------- Schritt 3: Bezeichnungen festlegen ---------- */
+function guessSetup(grid, orient) {
+  const L = orient === "rows" ? grid : transpose(grid), len = L.reduce((a, l) => Math.max(a, l.length), 0), at = (k) => L.map((l) => l[k] ?? "");
+  let h = 0;
+  const first = at(0).filter((v) => v !== "");
+  if (!first.length || first.filter((v) => F.isNumber(v)).length > first.length * 0.6) h = -1;
+  let d = h + 1;
+  for (let k = d; k < Math.min(8, len); k++) if (at(k).some((v) => /^\{"ImportId"/.test(v))) d = k + 1;   // Qualtrics: 3 Kopfzeilen
+  let lab = -1;
+  if (h >= 0) lab = at(h).findIndex((n) => /^(id|ids|response ?id|respondent ?id|participant ?id|case ?id|lfdn|fall(nummer)?|nr\.?|code|teilnehmer(-?id)?|person(en)?-?id|serial)$/i.test(String(n).trim()));
+  if (lab < 0 && L.length > 1) { const v = (L[0] || []).slice(d); if (v.length > 1 && v.every((x) => x !== "") && new Set(v).size === v.length) lab = 0; }
+  return { h, d: Math.max(0, Math.min(d, len - 1)), lab };
+}
+function openSetup(grid, orient, cfg, reconf) {
+  const g = cfg || guessSetup(grid, orient);
+  S.setup = { grid, orient, h: g.h, d: g.d, lab: g.lab, reconf, L: orient === "rows" ? grid : transpose(grid) };
+  if (S.setup.d <= S.setup.h) S.setup.d = S.setup.h + 1;
+  render(); window.scrollTo(0, 0);
+}
+function setupOrient(o) {
+  const u = S.setup; if (u.orient === o) return;
+  const g = guessSetup(u.grid, o);
+  Object.assign(u, { orient: o, h: g.h, d: g.d, lab: g.lab, L: o === "rows" ? u.grid : transpose(u.grid) });
+  renderSetup();
+}
+function renderSetup() {
+  const u = S.setup, rows = u.orient === "rows", L = u.L, len = L.reduce((a, l) => Math.max(a, l.length), 0);
+  const posName = (k) => rows ? T.colN(F.colName(k)) : T.rowN(k + 1);
+  const itemPos = (i) => rows ? T.rowN(i + 1) : T.colN(F.colName(i));
+  const peek = (k) => { const v = L.map((l) => l[k] ?? "").filter((x) => x !== "").slice(0, 3).join(", "); return v.length > 46 ? v.slice(0, 45) + "…" : v; };
+  const opt = (v, txt, sel) => '<option value="' + v + '"' + (sel ? " selected" : "") + ">" + esc(txt) + "</option>";
+  let names = opt(-1, T.none, u.h === -1);
+  for (let k = 0; k < Math.min(len, 25); k++) names += opt(k, posName(k) + (peek(k) ? " – " + peek(k) : ""), u.h === k);
+  let data = "";
+  for (let k = u.h + 1; k < Math.min(len, u.h + 31); k++) data += opt(k, posName(k) + (peek(k) ? " – " + peek(k) : ""), u.d === k);
+  let lab = opt(-1, T.none, u.lab === -1);
+  for (let i = 0; i < Math.min(L.length, 300); i++) { const n = u.h >= 0 ? String(L[i][u.h] ?? "") : ""; lab += opt(i, itemPos(i) + (n ? " – " + n : ""), u.lab === i); }
+  // Vorschau
+  const R = Math.min(u.grid.length, 14), C = Math.min(u.grid.reduce((a, r) => Math.max(a, r.length), 0), 10);
+  let tb = "<tr><th></th>" + Array.from({ length: C }, (_, c) => "<th>" + F.colName(c) + "</th>").join("") + "</tr>";
+  for (let r = 0; r < R; r++) {
+    tb += "<tr><th>" + (r + 1) + "</th>";
+    for (let c = 0; c < C; c++) {
+      const p = rows ? c : r, i = rows ? r : c, v = String(u.grid[r][c] ?? "");
+      const cls = (p === u.h ? "nm" : p < u.d ? "mt" : "dt") + (i === u.lab ? " lb" : "");
+      tb += '<td class="' + cls + '" title="' + esc(v) + '">' + esc(v.length > 40 ? v.slice(0, 39) + "…" : v) + "</td>";
+    }
+    tb += "</tr>";
+  }
+  const metaN = u.d - (u.h >= 0 && u.h < u.d ? 1 : 0);
+  $("view").innerHTML = '<div class="start">' +
+    '<section class="panel step"><div class="sn">3</div><div><h2>' + T.s3 + '</h2><p class="muted" style="margin:-4px 0 14px">' + T.s3D + "</p>" +
+    '<div class="sugrid">' +
+      '<div class="field" style="margin:0">' + T.orientT + '<div class="seg2"><button class="' + (!rows ? "on" : "") + '" data-act="su-orient" data-k="cols">' + T.colsT + '</button><button class="' + (rows ? "on" : "") + '" data-act="su-orient" data-k="rows">' + T.rowsT + "</button></div></div>" +
+      '<label class="field" style="margin:0"><span><i class="lg nm"></i>' + T.namesAt + '</span><select id="su-names">' + names + "</select></label>" +
+      '<label class="field" style="margin:0"><span><i class="lg dt"></i>' + T.dataAt + '</span><select id="su-data">' + data + "</select></label>" +
+      '<label class="field" style="margin:0"><span><i class="lg lb"></i>' + T.labelAt + '</span><select id="su-lab">' + lab + "</select></label>" +
+    "</div>" +
+    '<div class="legend"><span><i class="lg nm"></i>' + T.legName + '</span><span><i class="lg mt"></i>' + T.legMeta + '</span><span><i class="lg dt"></i>' + T.legData + '</span><span><i class="lg lb"></i>' + T.legLabel + "</span></div>" +
+    '<div class="prevwrap"><table class="prev">' + tb + "</table></div>" +
+    '<p class="small muted">' + T.previewNote(R, C, u.grid.length, u.grid.reduce((a, r) => Math.max(a, r.length), 0)) + "</p>" +
+    '<div class="sum">→ ' + T.sum(L.length, Math.max(0, len - u.d), rows) + (metaN > 0 ? "<br>" + T.sumMeta(metaN, rows) : "") + "</div>" +
+    '<div class="btnrow2"><button class="btn ghost" data-act="su-cancel">' + T.back + '</button><button class="btn primary" data-act="su-apply">' + T.apply + "</button></div>" +
+    "</div></section></div>";
+}
+function applySetup() {
+  const u = S.setup;
+  if (u.reconf) pushUndo(snapAll());
+  S.items = fromGrid(u.grid, u.orient, u.h, u.d); S.orient = u.orient; S.h = u.h; S.d = u.d;
+  if (u.reconf) { S.setup = null; S.idItem = u.lab; S.cur = Math.min(S.cur, S.items.length - 1); S.page = 0; setDirty(true); render(); }
+  else { P.orient = u.orient; savePrefs(); afterLoad(u.lab); }
+}
+
 /* ---------- Speichern / Export ---------- */
 const FMT = {
   xlsx: { ext: "xlsx", mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
@@ -856,14 +996,15 @@ const FMT = {
 const defaultFmt = () => P.lastFmt || ({ xlsx: "xlsx", ods: "ods", tsv: "tsv", xml2003: "xml", csv: S.delim === ";" ? "csvx" : "csv" }[S.srcType] || "xlsx");
 async function buildFile(fmt, orient, names) {
   const grid = toGrid(orient, names), sheet = S.sheet || S.fileName || "jellytable";
-  const bold = names ? (orient === "cols" ? { boldRow0: true } : { boldCol0: true }) : {};
+  const hd = names ? S.d : 0, hn = names ? S.h : -1;
+  const bold = orient === "cols" ? { boldRow: hn, freezeRows: hd } : { boldCol: hn, freezeCols: hd };
   if (fmt === "xlsx") return F.writeXLSX(grid, sheet, bold);
   if (fmt === "ods") return F.writeODS(grid, sheet);
   if (fmt === "csv") return new Blob([F.toCSV(grid, ",", false)]);
   if (fmt === "csvx") return new Blob([F.toCSV(grid, ";", true)]);
   if (fmt === "tsv") return new Blob([F.toCSV(grid, "\t", false)]);
   if (fmt === "xml") return new Blob([F.writeXML2003(grid, sheet)]);
-  return new Blob([JSON.stringify({ file: S.fileName, layout: orient, items: S.items.map((it, i) => ({ name: itemName(it, i), values: it.values })) }, null, 2)]);
+  return new Blob([JSON.stringify({ file: S.fileName, layout: orient, items: S.items.map((it, i) => ({ name: itemName(it, i), details: it.meta || [], values: it.values })) }, null, 2)]);
 }
 async function download(fmt, orient, names, base) {
   const blob = new Blob([await buildFile(fmt, orient, names)], { type: FMT[fmt].mime });
@@ -873,14 +1014,14 @@ async function download(fmt, orient, names, base) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   P.lastFmt = fmt; savePrefs(); setDirty(false); toast(T.saved + "  " + name);
 }
-const quickSave = () => S.loaded && download(defaultFmt(), S.orient, S.header);
+const quickSave = () => S.loaded && download(defaultFmt(), S.orient, true);
 function exportDialog() {
   if (!S.loaded) return;
   const d = $("dlg"), cur = defaultFmt();
   d.innerHTML = '<form method="dialog"><div class="dh"><h2>' + T.expT + '</h2></div><div class="db"><div class="muted small" style="margin-bottom:6px">' + T.fmtT + '</div><div class="fmts">' +
     Object.keys(FMT).map((k) => '<label class="fmt"><input type="radio" name="fmt" value="' + k + '"' + (k === cur ? " checked" : "") + "><span><b>" + T.fmts[k][0] + "</b><small>" + T.fmts[k][1] + "</small></span></label>").join("") + "</div>" +
     '<label class="field">' + T.orientT + '<select name="orient"><option value="cols"' + (S.orient === "cols" ? " selected" : "") + ">" + T.colsT + '</option><option value="rows"' + (S.orient === "rows" ? " selected" : "") + ">" + T.rowsT + "</option></select></label>" +
-    '<label class="check"><input type="checkbox" name="names"' + (S.header ? " checked" : "") + ">" + T.namesT + "</label>" +
+    '<label class="check"><input type="checkbox" name="names" checked>' + T.namesT + "</label>" +
     '<label class="field">' + T.fileT + '<input name="base" value="' + esc(S.fileName || "jellytable") + '" spellcheck="false"></label></div>' +
     '<div class="df"><button class="btn ghost" value="cancel">' + T.cancel + '</button><button class="btn primary" value="ok">' + ICON.export + " " + T.doExport + "</button></div></form>";
   d.onclick = null;
@@ -902,7 +1043,7 @@ const DB = {
 function autosaveSoon() {
   if (!P.autosave || !S.loaded) return;
   clearTimeout(autosaveSoon.h);
-  autosaveSoon.h = setTimeout(() => DB.put({ items: S.items, orient: S.orient, header: S.header, fileName: S.fileName, srcType: S.srcType, delim: S.delim, sheet: S.sheet, at: new Date().toISOString() }).catch(() => {}), 800);
+  autosaveSoon.h = setTimeout(() => DB.put({ items: S.items, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem, fileName: S.fileName, srcType: S.srcType, delim: S.delim, sheet: S.sheet, at: new Date().toISOString() }).catch(() => {}), 800);
 }
 
 /* ---------- Rendern: Menüzeile ---------- */
@@ -944,7 +1085,6 @@ function toggleMenu() {
 
 /* ---------- Rendern: Startseite ---------- */
 async function renderStart() {
-  const hc = P.orient === "cols" ? T.headerCols : T.headerRows;
   $("view").innerHTML = '<div class="start">' +
     '<div class="hero"><div class="row"><svg class="big" viewBox="0 0 64 64">' + LOGO.slice(LOGO.indexOf(">") + 1) + '<div><div class="joke">' + T.joke + "</div><h1>" + T.heroT + "</h1><p>" + T.heroD + "</p></div></div></div>" +
     '<div class="privacy">' + ICON.lock + "<div><b>" + T.privT + "</b>" + T.privD + "</div></div>" +
@@ -952,7 +1092,7 @@ async function renderStart() {
     '<section class="panel step"><div class="sn">1</div><div><h2>' + T.s1 + '</h2><div class="orients">' +
       '<button class="orient' + (P.orient === "cols" ? " on" : "") + '" data-act="orient" data-k="cols">' + ORIENT_SVG(false) + "<span><b>" + T.colsT + "</b><small>" + T.colsD + "</small></span></button>" +
       '<button class="orient' + (P.orient === "rows" ? " on" : "") + '" data-act="orient" data-k="rows">' + ORIENT_SVG(true) + "<span><b>" + T.rowsT + "</b><small>" + T.rowsD + "</small></span></button></div>" +
-      '<label class="check"><input type="checkbox" id="hdr"' + (P.header ? " checked" : "") + ">" + hc + "</label></div></section>" +
+      "</div></section>" +
     '<section class="panel step"><div class="sn">2</div><div><h2>' + T.s2 + "</h2>" +
       '<label class="drop" id="drop"><span class="dic">🪼</span><b>' + T.drop + '</b><span class="small muted">' + T.or + '</span><span class="btn small primary">' + T.pick + "</span>" +
       '<span class="formats"><span>.csv</span><span>.tsv</span><span>.txt</span><span>.xlsx</span><span>.xlsm</span><span>.ods</span><span>Excel 2003 .xml</span></span></label>' +
@@ -965,7 +1105,6 @@ async function renderStart() {
   dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
   dz.addEventListener("dragleave", () => dz.classList.remove("over"));
   dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("over"); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
-  $("hdr").addEventListener("change", (e) => { P.header = e.target.checked; savePrefs(); });
   if (P.autosave) {
     try {
       const s = await DB.get();
@@ -977,21 +1116,21 @@ async function renderStart() {
 
 /* ---------- Rendern: Browser ---------- */
 function renderBrowser() {
-  $("view").innerHTML = '<div class="browser' + (S.sideOpen ? " sideopen" : "") + '" id="browser"><aside class="side"><div class="head"><div class="t"><span>' + T.itemsT + '</span><span id="icount"></span></div>' +
+  $("view").innerHTML = '<div class="browser' + (S.sideOpen ? " sideopen" : "") + '" id="browser" style="--sidew:' + P.sideW + 'px"><aside class="side"><div class="head"><div class="t"><span>' + T.itemsT + '</span><span id="icount"></span></div>' +
     '<div class="search">' + ICON.search + '<input type="search" id="isearch" placeholder="' + T.itemSearch + '" value="' + esc(S.itemFilter) + '"></div></div>' +
-    '<ul class="items" id="items"></ul><div class="foot2"><button class="btn small" data-act="additem">' + ICON.plus + " " + T.addItem + "</button></div></aside>" +
+    '<ul class="items" id="items"></ul><div class="foot2"><button class="btn small" data-act="additem">' + ICON.plus + " " + T.addItem + '</button></div><div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="' + T.resize + '" title="' + T.resize + '" tabindex="0"></div></aside>' +
     '<main class="main" id="main"></main></div>';
   renderSide(); renderMain();
 }
 function renderSide() {
   const ul = $("items"); if (!ul) return;
   const q = S.itemFilter.trim().toLowerCase(), n = maxLen() || 1;
-  const list = S.items.map((it, i) => [it, i]).filter(([it, i]) => !q || itemName(it, i).toLowerCase().includes(q));
+  const list = S.items.map((it, i) => [it, i]).filter(([it, i]) => !q || (itemName(it, i) + " " + metaText(it)).toLowerCase().includes(q));
   $("icount").textContent = S.items.length;
   ul.innerHTML = list.length ? list.map(([it, i]) => {
     const filled = it.values.filter((v) => v !== "").length;
     const nm = S.renaming === i ? '<input class="rn" id="rn" value="' + esc(it.name) + '">' : '<span class="nm' + (it.name === "" ? " ph" : "") + '">' + esc(itemName(it, i)) + "</span>";
-    return '<li class="it' + (i === S.cur ? " on" : "") + '" data-act="pick" data-i="' + i + '" title="' + esc(itemName(it, i)) + '"><span class="num">' + esc(it.label || i + 1) + "</span>" + nm +
+    return '<li class="it' + (i === S.cur ? " on" : "") + '" data-act="pick" data-i="' + i + '" title="' + esc(itemName(it, i) + (metaText(it) ? "\n" + metaText(it) : "")) + '"><span class="num">' + esc(it.label || i + 1) + "</span>" + nm +
       '<span class="fill" title="' + filled + "/" + it.values.length + " " + T.filled + '"><i style="width:' + Math.round(100 * filled / n) + '%"></i></span>' +
       '<span class="acts"><button data-act="rename" data-i="' + i + '" title="' + T.rename + '">' + ICON.pen + '</button><button data-act="delitem" data-i="' + i + '" title="' + T.delItem + '">' + ICON.trash + "</button></span></li>";
   }).join("") : '<li class="it muted">' + T.noItems + "</li>";
@@ -1014,12 +1153,14 @@ function renderMain() {
   const distinct = counts.size;
   let h = '<div class="ihead">' + (S.renaming === -2 ? '<input class="rn" id="rnh" value="' + esc(it.name) + '">' : '<h1 data-act="renamehead" title="' + T.rename + '">' + (it.name === "" ? '<span class="ph">' + esc(itemName(it, S.cur)) + "</span>" : esc(it.name)) + "</h1>") +
     '<button class="mini" data-act="move" data-k="-1" title="' + T.up + '">' + ICON.up + '</button><button class="mini" data-act="move" data-k="1" title="' + T.down + '">' + ICON.down + "</button></div>";
+  if (metaText(it)) h += '<p class="imeta">' + esc(metaText(it)) + "</p>";
   h += '<div class="stats"><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
   if (distinct > 0 && distinct <= 12 && filled > distinct) {
     const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true })), mx = top[0][1];
     h += '<div class="dist">' + top.map(([v, c]) => '<div class="row"><span title="' + esc(v) + '">' + esc(v) + '</span><i style="width:' + Math.max(3, Math.round(100 * c / mx)) + '%"></i><em>' + c + "</em></div>").join("") + "</div>";
   }
   h += '<div class="etools"><label>' + T.idShow + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
+    '<span class="fitsel">' + T.fitT + ' <span class="seg2 small"><button class="' + (P.fit ? "on" : "") + '" data-act="fit" data-k="1">' + T.fitOn + '</button><button class="' + (!P.fit ? "on" : "") + '" data-act="fit" data-k="0">' + T.fitOff + "</button></span></span>" +
     '<span class="grow"></span><div class="search" style="min-width:200px">' + ICON.search + '<input type="search" id="esearch" placeholder="' + T.filter + '" value="' + esc(S.filter) + '"></div></div>';
   const m = matches();
   h += m ? '<p class="hint">' + T.hits(m.length) + "</p>" : '<p class="hint">' + T.hint + "</p>";
@@ -1028,7 +1169,7 @@ function renderMain() {
   else { const a = S.page * PAGE; idx = []; for (let k = a; k < Math.min(n, a + PAGE); k++) idx.push(k); }
   const total = m ? m.length : n, pages = Math.max(1, Math.ceil(total / PAGE));
   if (S.page >= pages) { S.page = pages - 1; return renderMain(); }
-  const idVals = S.idItem >= 0 && S.items[S.idItem] ? S.items[S.idItem].values : null;
+  const idVals = S.idItem >= 0 && S.idItem !== S.cur && S.items[S.idItem] ? S.items[S.idItem].values : null;
   let list = "";
   if (!m) list += S.page === 0 ? '<li class="gap edge"><button class="add" data-act="ins" data-k="0">' + ICON.plus + T.addFirst + "</button></li>" : '<li class="gap"><button class="add" data-act="ins" data-k="' + idx[0] + '" title="' + T.insertHere + '">' + ICON.plus + "</button></li>";
   idx.forEach((k, j) => {
@@ -1043,10 +1184,14 @@ function renderMain() {
   main.querySelectorAll("textarea").forEach(fit);
   const rnh = $("rnh"); if (rnh) { rnh.focus(); rnh.select(); }
 }
-function fit(ta) { ta.style.height = "auto"; ta.style.height = Math.max(40, ta.scrollHeight + 2) + "px"; }
+function fit(ta) {   // Breite wächst mit dem Inhalt (längste Zeile), Höhe mit der Zeilenzahl
+  if (P.fit) { const w = ta.value.split("\n").reduce((a, l) => Math.max(a, Array.from(l).length), 0); ta.style.width = "min(100%, " + Math.max(14, w + 4) + "ch)"; }
+  else ta.style.width = "100%";
+  ta.style.height = "auto"; ta.style.height = Math.max(40, ta.scrollHeight + 2) + "px";
+}
 function render() {
   renderBar();
-  if (S.loaded) renderBrowser(); else renderStart();
+  if (S.setup) renderSetup(); else if (S.loaded) renderBrowser(); else renderStart();
   const m = $("menu"); if (m) m.remove();
 }
 
@@ -1056,7 +1201,8 @@ function deleteEntry(k) { pushUndo(snapItem(S.cur)); S.items[S.cur].values.splic
 function renameItem(i, name) { if (S.items[i].name === name) return; pushUndo(snapItem(i)); S.items[i].name = name; setDirty(true); }
 function addItem() {
   pushUndo(snapAll());
-  S.items.splice(S.cur + 1, 0, { name: T.newItem, label: "+", values: new Array(maxLen()).fill("") });
+  S.items.splice(S.cur + 1, 0, { name: T.newItem, label: "+", meta: new Array(Math.max(0, S.d - (S.h >= 0 ? 1 : 0))).fill(""), values: new Array(maxLen()).fill("") });
+  if (S.h < 0) { S.h = 0; S.d += 1; S.items.forEach((x) => { if (x.name === undefined) x.name = ""; }); }
   S.cur++; S.renaming = -2; S.page = 0; setDirty(true); renderSide(); renderMain();
 }
 function deleteItem(i) {
@@ -1072,14 +1218,7 @@ function moveItem(d) {
   if (S.idItem === i) S.idItem = j; else if (S.idItem === j) S.idItem = i;
   S.cur = j; setDirty(true); renderSide(); renderMain();
 }
-function pick(i) { if (i === S.cur) return; S.cur = i; S.page = 0; S.filter = ""; S.renaming = -1; if (S.idItem === i) S.idItem = -1; S.sideOpen = false; const b = $("browser"); if (b) b.classList.remove("sideopen"); renderSide(); renderMain(); $("main").scrollTop = 0; }
-function reorient() {
-  const grid = toGrid(S.orient, S.header), next = S.orient === "cols" ? "rows" : "cols";
-  pushUndo(snapAll());
-  S.items = fromGrid(grid, next, S.header); S.orient = next; S.cur = 0; S.page = 0; S.idItem = -1;
-  setDirty(true); render();
-}
-
+function pick(i) { if (i === S.cur) return; S.cur = i; S.page = 0; S.filter = ""; S.renaming = -1; S.sideOpen = false; const b = $("browser"); if (b) b.classList.remove("sideopen"); renderSide(); renderMain(); $("main").scrollTop = 0; }
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click", async (e) => {
   const menu = $("menu");
@@ -1097,8 +1236,8 @@ document.addEventListener("click", async (e) => {
   else if (a === "theme") { P.theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light"; savePrefs(); applyTheme(); renderBar(); }
   else if (a === "menu") toggleMenu();
   else if (a === "orient") { P.orient = k; savePrefs(); renderStart(); }
-  else if (a === "sample") { const f = new File([sampleCSV()], T.sampleName + ".csv", { type: "text/csv" }); P.orient = "cols"; P.header = true; savePrefs(); loadFile(f); }
-  else if (a === "restore") { const s = await DB.get(); if (s) { Object.assign(S, { items: s.items, orient: s.orient, header: s.header, fileName: s.fileName, srcType: s.srcType, delim: s.delim, sheet: s.sheet, encoding: "" }); afterLoad(); S.dirty = true; renderBarState(); } }
+  else if (a === "sample") { const f = new File([sampleCSV()], T.sampleName + ".csv", { type: "text/csv" }); P.orient = "cols"; savePrefs(); loadFile(f); }
+  else if (a === "restore") { const s = await DB.get(); if (s) { Object.assign(S, { items: s.items, orient: s.orient, h: s.h ?? 0, d: s.d ?? 1, fileName: s.fileName, srcType: s.srcType, delim: s.delim, sheet: s.sheet, encoding: "" }); afterLoad(s.idItem); S.dirty = true; renderBarState(); } }
   else if (a === "discard") { await DB.clear(); $("restore").innerHTML = ""; }
   else if (a === "side") { S.sideOpen = !S.sideOpen; $("browser").classList.toggle("sideopen", S.sideOpen); }
   else if (a === "pick" && !e.target.closest(".acts") && !e.target.closest("input")) pick(i);
@@ -1110,7 +1249,11 @@ document.addEventListener("click", async (e) => {
   else if (a === "ins") insertEntry(+k);
   else if (a === "del") deleteEntry(+k);
   else if (a === "page") { S.page += +k; renderMain(); $("main").scrollTop = 0; }
-  else if (a === "reorient") { $("menu")?.remove(); reorient(); }
+  else if (a === "reorient") { $("menu")?.remove(); openSetup(toGrid(S.orient, true), S.orient, { h: S.h, d: S.d, lab: S.idItem }, true); }
+  else if (a === "su-orient") setupOrient(k);
+  else if (a === "su-apply") applySetup();
+  else if (a === "su-cancel") { const re = S.setup && S.setup.reconf; S.setup = null; if (!re) S.loaded = false; render(); }
+  else if (a === "fit") { P.fit = k === "1"; savePrefs(); renderMain(); }
   else if (a === "forget") { $("menu")?.remove(); await DB.clear(); try { localStorage.removeItem(PKEY); } catch (er) {} P.autosave = false; toast(T.forgotten); }
   else if (a === "shortcuts" || a === "about") { $("menu")?.remove(); info(a); }
 });
@@ -1118,6 +1261,9 @@ document.addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset && t.dataset.act === "autosave") { P.autosave = t.checked; savePrefs(); if (P.autosave) autosaveSoon(); else DB.clear(); }
   if (t.id === "idsel") { S.idItem = +t.value; renderMain(); }
+  if (t.id === "su-names") { const u = S.setup; u.h = +t.value; if (u.d <= u.h) u.d = u.h + 1; renderSetup(); }
+  if (t.id === "su-data") { S.setup.d = +t.value; renderSetup(); }
+  if (t.id === "su-lab") { S.setup.lab = +t.value; renderSetup(); }
   if (t.id === "fname") { S.fileName = t.value.trim() || "jellytable"; renderBarState(); autosaveSoon(); }
   if (t.tagName === "TEXTAREA" && t.dataset.k != null) {
     const k = +t.dataset.k, before = t.dataset.before;
@@ -1153,6 +1299,19 @@ document.addEventListener("focusout", (e) => {
 window.addEventListener("beforeunload", (e) => { if (S.dirty && !P.autosave) { e.preventDefault(); e.returnValue = T.leave; } });
 document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("drop", (e) => { if (e.target.closest && e.target.closest("#drop")) return; e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files[0]; if (f && (!S.dirty || confirm(T.leave))) { if (!S.loaded) loadFile(f); else { S.loaded = false; render(); loadFile(f); } } });
+// Breite der Item-Liste: ziehen, Pfeiltasten, Doppelklick = zurücksetzen
+const clampW = (w) => Math.max(180, Math.min(w, Math.max(240, window.innerWidth - 360)));
+function setSideW(w, persist) { P.sideW = Math.round(clampW(w)); const b = $("browser"); if (b) b.style.setProperty("--sidew", P.sideW + "px"); if (persist) savePrefs(); }
+document.addEventListener("pointerdown", (e) => {
+  const r = e.target.closest && e.target.closest("#resizer"); if (!r) return;
+  e.preventDefault(); r.setPointerCapture(e.pointerId); r.classList.add("drag"); document.body.classList.add("resizing");
+  const x0 = e.clientX, w0 = P.sideW;
+  const mv = (ev) => setSideW(w0 + ev.clientX - x0, false);
+  const up = () => { r.removeEventListener("pointermove", mv); r.classList.remove("drag"); document.body.classList.remove("resizing"); savePrefs(); };
+  r.addEventListener("pointermove", mv); r.addEventListener("pointerup", up, { once: true }); r.addEventListener("pointercancel", up, { once: true });
+});
+document.addEventListener("dblclick", (e) => { if (e.target.closest && e.target.closest("#resizer")) setSideW(300, true); });
+document.addEventListener("keydown", (e) => { if (e.target.id === "resizer" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setSideW(P.sideW + (e.key === "ArrowRight" ? 20 : -20), true); } });
 function info(kind) {
   const d = $("dlg");
   d.innerHTML = '<div class="dh"><h2>' + (kind === "about" ? T.about : T.shortcuts) + '</h2></div><div class="db">' +

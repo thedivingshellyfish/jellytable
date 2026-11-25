@@ -340,13 +340,13 @@ const sheetName = (s) => (String(s || "Sheet1").replace(/[\[\]:*?/\\]/g, "-").sl
 F.writeXLSX = async function (rows, name, opt) {
   opt = opt || {};
   const cell = (v, r, c) => {
-    const ref = F.colName(c) + (r + 1), st = (opt.boldRow0 && r === 0) || (opt.boldCol0 && c === 0) ? ' s="1"' : "";
+    const ref = F.colName(c) + (r + 1), st = (opt.boldRow != null && opt.boldRow >= 0 && r === opt.boldRow) || (opt.boldCol != null && opt.boldCol >= 0 && c === opt.boldCol) ? ' s="1"' : "";
     if (v === "" || v == null) return st ? '<c r="' + ref + '"' + st + "/>" : "";
     if (F.isNumber(v)) return '<c r="' + ref + '"' + st + "><v>" + v + "</v></c>";
     return '<c r="' + ref + '"' + st + ' t="inlineStr"><is><t xml:space="preserve">' + xesc(v) + "</t></is></c>";
   };
-  const pane = opt.boldRow0 ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
-    : opt.boldCol0 ? '<sheetViews><sheetView workbookViewId="0"><pane xSplit="1" topLeftCell="B1" activePane="topRight" state="frozen"/></sheetView></sheetViews>' : "";
+  const pane = opt.freezeRows > 0 ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + opt.freezeRows + '" topLeftCell="A' + (opt.freezeRows + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+    : opt.freezeCols > 0 ? '<sheetViews><sheetView workbookViewId="0"><pane xSplit="' + opt.freezeCols + '" topLeftCell="' + F.colName(opt.freezeCols) + '1" activePane="topRight" state="frozen"/></sheetView></sheetViews>' : "";
   const w = rows.reduce((m, r) => Math.max(m, r.length), 0);
   const dim = rows.length && w ? '<dimension ref="A1:' + F.colName(w - 1) + rows.length + '"/>' : "";
   const data = rows.map((r, i) => '<row r="' + (i + 1) + '">' + r.map((v, j) => cell(v, i, j)).join("") + "</row>").join("");
