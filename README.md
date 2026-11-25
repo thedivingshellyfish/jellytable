@@ -1,6 +1,6 @@
 > 🌐 **English** · [Deutsch](README.de.md)
 
-<img src="assets/jellytable-logo.svg" alt="" width="60" align="right">
+<img src="assets/jellytable-logo.svg" alt="" width="56" align="right">
 
 # jellytable
 
