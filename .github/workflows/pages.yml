@@ -1,5 +1,6 @@
-# Publishes jellytable on GitHub Pages: index.html (+ assets, docs).
+# Publishes jellytable on GitHub Pages: index.html (+ assets, docs, samples).
 # One-time setup: Settings -> Pages -> Source: "GitHub Actions"
+# Two jobs (build, deploy) like the jellyqda website workflow.
 name: pages
 
 on:
@@ -17,22 +18,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Check that index.html is up to date
         run: |
           cp index.html /tmp/committed.html
           python3 build.py
           cmp index.html /tmp/committed.html || { echo "index.html is out of date - run python3 build.py and commit"; exit 1; }
+
       - name: Assemble site
-        run: mkdir -p site && cp -r index.html assets docs samples site/
-      - uses: actions/upload-pages-artifact@v3
+        run: |
+          mkdir -p site
+          cp -r index.html assets docs samples site/
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - id: deployment
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
