@@ -146,15 +146,20 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .gap:hover .add, .add:focus { opacity: 1; color: var(--accent); border-color: var(--accent); }
 .gap.edge { height: 34px; }
 .gap.edge .add { opacity: 1; width: auto; padding: 0 10px; gap: 6px; display: inline-flex; align-items: center; font-size: 12.5px; font-weight: 700; height: 26px; }
-.entry { display: grid; grid-template-columns: 44px auto minmax(0, 1fr) 34px; gap: 8px; align-items: start; }
-.entry .no { font-size: 12px; color: var(--muted); text-align: right; padding-top: 10px; font-variant-numeric: tabular-nums; }
-.entry .id { font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 8px; margin-top: 6px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, transparent); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.entry .id:empty { display: none; }
+.entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) 34px; gap: 8px; align-items: start; }
+.ebox { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.elab { display: flex; min-width: 0; }
+.elab input.lab { font-size: 12px; font-weight: 750; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); border: 1px solid transparent; border-radius: 8px; padding: 2px 8px; max-width: 100%; min-width: 0; outline: none; }
+.elab input.lab:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.elab input.lab:focus { border-color: var(--accent); background: var(--card); }
+.elab input.lab::placeholder { color: var(--muted); font-weight: 600; }
+.elab .pos { font-size: 11.5px; font-weight: 650; color: var(--muted); padding: 2px 2px; cursor: help; }
+.entry .no { font-size: 12px; color: var(--muted); text-align: right; padding-top: 32px; font-variant-numeric: tabular-nums; }
 .entry textarea { width: 100%; max-width: 100%; justify-self: start; resize: vertical; min-height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); padding: 9px 11px; line-height: 1.45; outline: none; overflow: hidden; }
 .entry textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
 .entry textarea.empty { background: transparent; border-style: dashed; }
 .entry textarea.changed { border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); }
-.entry .del { width: 30px; height: 30px; margin-top: 5px; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.entry .del { width: 30px; height: 30px; margin-top: 27px; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
 .entry .del:hover { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); background: color-mix(in srgb, var(--bad) 8%, transparent); }
 mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inherit; border-radius: 3px; }
 .pager { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 16px 0 0; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
@@ -165,10 +170,7 @@ mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inhe
   .browser.sideopen .side { transform: none; }
   .sidetoggle { display: inline-flex; }
   .main { padding: 14px 12px 40px; }
-  .entry { grid-template-columns: 30px minmax(0, 1fr) 32px; }
-  .entry .id { grid-column: 2; grid-row: 1; margin-top: 0; justify-self: start; }
-  .entry .id:not(:empty) + textarea { grid-row: 2; }
-  .entry .no { grid-row: 1 / span 2; }
+  .entry { grid-template-columns: 26px minmax(0, 1fr) 32px; }
 }
 
 /* ---------- Dialoge ---------- */
@@ -238,3 +240,13 @@ table.prev { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
 .field select, .field input { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 .sugrid > * { min-width: 0; }
 .seg2 { flex-wrap: wrap; }
+
+/* Ausrichtung in Schritt 3 + Positions-Chip */
+.sugrid .span2 { grid-column: 1 / -1; }
+.orients.compact .orient { position: relative; padding: 10px 12px; margin-top: 2px; }
+.orients.compact .orient svg { width: 84px; height: 55px; }
+.orient .tick { position: absolute; top: 8px; right: 10px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; }
+.orient:not(.on) { opacity: .75; }
+.orient:not(.on):hover { opacity: 1; }
+.chip.where { display: inline-flex; align-items: center; gap: 6px; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.chip.where svg { width: 26px; height: 17px; }

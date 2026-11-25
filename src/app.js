@@ -83,7 +83,7 @@ function pushUndo(op) { U.undo.push(op); if (U.undo.length > 500) U.undo.shift()
 const snapItem = (i) => ({ kind: "item", i, name: S.items[i].name, values: S.items[i].values.slice() });
 const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })), cur: S.cur, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem });
 function applyOp(op) {   // gibt die Gegen-Operation zurück
-  if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] }; S.items[op.i].values[op.k] = op.v; S.cur = op.i; return inv; }
+  if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] ?? "", keep: op.keep }; S.items[op.i].values[op.k] = op.v; if (!op.keep) S.cur = op.i; return inv; }
   if (op.kind === "item") { const inv = snapItem(op.i); S.items[op.i].name = op.name; S.items[op.i].values = op.values; S.cur = op.i; return inv; }
   const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1);
   S.orient = op.orient; S.h = op.h; S.d = op.d; S.idItem = op.idItem; return inv;
@@ -208,7 +208,9 @@ function renderSetup() {
   $("view").innerHTML = '<div class="start">' +
     '<section class="panel step"><div class="sn">3</div><div><h2>' + T.s3 + '</h2><p class="muted" style="margin:-4px 0 14px">' + T.s3D + "</p>" +
     '<div class="sugrid">' +
-      '<div class="field" style="margin:0">' + T.orientT + '<div class="seg2"><button class="' + (!rows ? "on" : "") + '" data-act="su-orient" data-k="cols">' + T.colsT + '</button><button class="' + (rows ? "on" : "") + '" data-act="su-orient" data-k="rows">' + T.rowsT + "</button></div></div>" +
+      '<div class="field span2" style="margin:0">' + T.orientT + '<div class="orients compact">' +
+        '<button class="orient' + (!rows ? " on" : "") + '" data-act="su-orient" data-k="cols" aria-pressed="' + !rows + '">' + ORIENT_SVG(false) + "<span><b>" + T.colsT + "</b><small>" + T.colsD + "</small></span>" + (!rows ? '<span class="tick">✓</span>' : "") + "</button>" +
+        '<button class="orient' + (rows ? " on" : "") + '" data-act="su-orient" data-k="rows" aria-pressed="' + rows + '">' + ORIENT_SVG(true) + "<span><b>" + T.rowsT + "</b><small>" + T.rowsD + "</small></span>" + (rows ? '<span class="tick">✓</span>' : "") + "</button></div></div>" +
       '<label class="field" style="margin:0"><span><i class="lg nm"></i>' + T.namesAt + '</span><select id="su-names">' + names + "</select></label>" +
       '<label class="field" style="margin:0"><span><i class="lg dt"></i>' + T.dataAt + '</span><select id="su-data">' + data + "</select></label>" +
       '<label class="field" style="margin:0"><span><i class="lg lb"></i>' + T.labelAt + '</span><select id="su-lab">' + lab + "</select></label>" +
@@ -396,12 +398,13 @@ function renderMain() {
   let h = '<div class="ihead">' + (S.renaming === -2 ? '<input class="rn" id="rnh" value="' + esc(it.name) + '">' : '<h1 data-act="renamehead" title="' + T.rename + '">' + (it.name === "" ? '<span class="ph">' + esc(itemName(it, S.cur)) + "</span>" : esc(it.name)) + "</h1>") +
     '<button class="mini" data-act="move" data-k="-1" title="' + T.up + '">' + ICON.up + '</button><button class="mini" data-act="move" data-k="1" title="' + T.down + '">' + ICON.down + "</button></div>";
   if (metaText(it)) h += '<p class="imeta">' + esc(metaText(it)) + "</p>";
-  h += '<div class="stats"><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
+  const posLbl = it.label && it.label !== "+" ? (S.orient === "cols" ? T.colN(it.label) : T.rowN(it.label)) : T.newItem;
+  h += '<div class="stats"><span class="chip where" title="' + (S.orient === "cols" ? T.colsT : T.rowsT) + '">' + ORIENT_SVG(S.orient === "rows") + "<b>" + esc(posLbl) + "</b> · " + (S.orient === "cols" ? T.colsT : T.rowsT) + '</span><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
   if (distinct > 0 && distinct <= 12 && filled > distinct) {
     const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true })), mx = top[0][1];
     h += '<div class="dist">' + top.map(([v, c]) => '<div class="row"><span title="' + esc(v) + '">' + esc(v) + '</span><i style="width:' + Math.max(3, Math.round(100 * c / mx)) + '%"></i><em>' + c + "</em></div>").join("") + "</div>";
   }
-  h += '<div class="etools"><label>' + T.idShow + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
+  h += '<div class="etools"><label>' + T.labelAt + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
     '<span class="fitsel">' + T.fitT + ' <span class="seg2 small"><button class="' + (P.fit ? "on" : "") + '" data-act="fit" data-k="1">' + T.fitOn + '</button><button class="' + (!P.fit ? "on" : "") + '" data-act="fit" data-k="0">' + T.fitOff + "</button></span></span>" +
     '<span class="grow"></span><div class="search" style="min-width:200px">' + ICON.search + '<input type="search" id="esearch" placeholder="' + T.filter + '" value="' + esc(S.filter) + '"></div></div>';
   const m = matches();
@@ -417,15 +420,19 @@ function renderMain() {
   idx.forEach((k, j) => {
     if (j > 0 && !m) list += '<li class="gap"><button class="add" data-act="ins" data-k="' + k + '" title="' + T.insertHere + '" aria-label="' + T.insertHere + '">' + ICON.plus + "</button></li>";
     const v = vals[k];
-    list += '<li class="entry"><span class="no">' + (k + 1) + '</span><span class="id">' + (idVals ? esc(idVals[k] ?? "") : "") + '</span><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
+    const lab = idVals ? '<input class="lab" data-lk="' + k + '" value="' + esc(idVals[k] ?? "") + '" placeholder="' + T.noLabel + '" spellcheck="false" aria-label="' + esc(T.labelAt) + " " + (k + 1) + '">'
+      : '<span class="pos" title="' + esc(T.labHint) + '">' + esc(S.orient === "cols" ? T.rowN(k + S.d + 1) : T.colN(F.colName(k + S.d))) + "</span>";
+    list += '<li class="entry"><span class="no">' + (k + 1) + '</span><div class="ebox"><div class="elab">' + lab + '</div><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea></div><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
   });
   if (!m && S.page === pages - 1) list += '<li class="gap edge"><button class="add" data-act="ins" data-k="' + n + '">' + ICON.plus + T.addLast + "</button></li>";
   h += '<ul class="entries" id="entries">' + list + "</ul>";
   if (pages > 1) h += '<div class="pager"><button class="btn small" data-act="page" data-k="-1"' + (S.page === 0 ? " disabled" : "") + ">‹ " + T.prev + "</button><span>" + T.page(S.page * PAGE + 1, Math.min(total, S.page * PAGE + PAGE), total) + '</span><button class="btn small" data-act="page" data-k="1"' + (S.page >= pages - 1 ? " disabled" : "") + ">" + T.next + " ›</button></div>";
   main.innerHTML = h;
   main.querySelectorAll("textarea").forEach(fit);
+  main.querySelectorAll("input.lab").forEach(fitLab);
   const rnh = $("rnh"); if (rnh) { rnh.focus(); rnh.select(); }
 }
+function fitLab(el) { el.style.width = Math.max(8, Array.from(el.value || el.placeholder).length + 3) + "ch"; }
 function fit(ta) {   // Breite wächst mit dem Inhalt (längste Zeile), Höhe mit der Zeilenzahl
   if (P.fit) { const w = ta.value.split("\n").reduce((a, l) => Math.max(a, Array.from(l).length), 0); ta.style.width = "min(100%, " + Math.max(14, w + 4) + "ch)"; }
   else ta.style.width = "100%";
@@ -507,16 +514,26 @@ document.addEventListener("change", (e) => {
   if (t.id === "su-data") { S.setup.d = +t.value; renderSetup(); }
   if (t.id === "su-lab") { S.setup.lab = +t.value; renderSetup(); }
   if (t.id === "fname") { S.fileName = t.value.trim() || "jellytable"; renderBarState(); autosaveSoon(); }
+  if (t.classList.contains("lab") && S.idItem >= 0) {
+    const k = +t.dataset.lk, before = t.dataset.before;
+    if (before != null && before !== t.value) pushUndo({ kind: "cell", i: S.idItem, k, v: before, keep: true });
+    t.dataset.before = t.value;
+  }
   if (t.tagName === "TEXTAREA" && t.dataset.k != null) {
     const k = +t.dataset.k, before = t.dataset.before;
     if (before != null && before !== t.value) { pushUndo({ kind: "cell", i: S.cur, k, v: before }); renderSide(); }
     t.dataset.before = t.value;
   }
 });
-document.addEventListener("focusin", (e) => { const t = e.target; if (t.tagName === "TEXTAREA" && t.dataset.k != null) t.dataset.before = S.items[S.cur].values[+t.dataset.k] ?? ""; });
+document.addEventListener("focusin", (e) => {
+  const t = e.target;
+  if (t.tagName === "TEXTAREA" && t.dataset.k != null) t.dataset.before = S.items[S.cur].values[+t.dataset.k] ?? "";
+  if (t.classList && t.classList.contains("lab")) t.dataset.before = S.items[S.idItem].values[+t.dataset.lk] ?? "";
+});
 document.addEventListener("input", (e) => {
   const t = e.target;
   if (t.tagName === "TEXTAREA" && t.dataset.k != null) { S.items[S.cur].values[+t.dataset.k] = t.value; t.classList.toggle("empty", t.value === ""); t.classList.add("changed"); fit(t); if (!S.dirty) setDirty(true); else autosaveSoon(); }
+  if (t.classList.contains("lab") && S.idItem >= 0) { const vals = S.items[S.idItem].values, k = +t.dataset.lk; while (vals.length < k) vals.push(""); vals[k] = t.value; fitLab(t); if (!S.dirty) setDirty(true); else autosaveSoon(); }
   if (t.id === "isearch") { S.itemFilter = t.value; renderSide(); }
   if (t.id === "esearch") { S.filter = t.value; S.page = 0; clearTimeout(t._h); t._h = setTimeout(() => { const pos = t.selectionStart; renderMain(); const n = $("esearch"); n.focus(); n.setSelectionRange(pos, pos); }, 200); }
 });
