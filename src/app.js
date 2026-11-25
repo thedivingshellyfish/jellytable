@@ -9,14 +9,14 @@ const PAGE = 100;
 
 /* ---------- Einstellungen (nur Einstellungen, keine Daten) ---------- */
 const PKEY = "jellytable-prefs";
-let P = { theme: null, lang: null, orient: "cols", autosave: false, lastFmt: null, sideW: 300, fit: true };
+let P = { theme: null, lang: null, orient: "cols", autosave: false, lastFmt: null, sideW: 300, fit: true, rowMode: true };
 try { Object.assign(P, JSON.parse(localStorage.getItem(PKEY) || "{}")); } catch (e) {}
 const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(P)); } catch (e) {} };
 if (!P.lang) P.lang = /^de/i.test(navigator.language || "") ? "de" : "en";
 let T = TEXT[P.lang];
 
 /* ---------- Zustand ---------- */
-const S = { items: [], orient: "cols", h: 0, d: 1, setup: null, fileName: "", srcType: "", delim: ",", encoding: "", sheet: "", cur: 0, page: 0, idItem: -1, filter: "", itemFilter: "", dirty: false, loaded: false, sideOpen: false, renaming: -1 };
+const S = { items: [], orient: "cols", h: 0, d: 1, setup: null, sheets: null, log: [], hideEmpty: false, sort: "file", saveHandle: null, saveFmt: null, fileName: "", srcType: "", delim: ",", encoding: "", sheet: "", cur: 0, page: 0, idItem: -1, filter: "", itemFilter: "", dirty: false, loaded: false, sideOpen: false, renaming: -1 };
 const U = { undo: [], redo: [] };
 
 /* ---------- Icons & Logo ---------- */
@@ -31,7 +31,8 @@ const ICON = {
   search: I('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'), pen: I('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
   trash: I('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'), plus: I('<path d="M12 5v14M5 12h14"/>'), minus: I('<path d="M5 12h14"/>'),
   list: I('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'), flip: I('<path d="M7 3v18M17 3v18M3 7h18M3 17h18"/>'),
-  key: I('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>'), info: I('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>'),
+  key: I('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>'),
+  table: I('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>'), history: I('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>'), info: I('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>'),
   up: I('<path d="m18 15-6-6-6 6"/>'), down: I('<path d="m6 9 6 6 6-6"/>'), lock: I('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>')
 };
 // Die Qualle mit Tabellen-Schirm: jellyqda goes table
@@ -78,11 +79,26 @@ function itemLines(withHead) {
 const toGrid = (orient, withHead) => { const L = itemLines(withHead); return orient === "rows" ? L : transpose(L); };
 const metaText = (it) => (it.meta || []).filter((v) => v !== "").join(" · ");
 
+/* ---------- Änderungsprotokoll (4) ---------- */
+// Jede Aktion landet mit Zeitstempel im Protokoll; geänderte Einträge werden markiert.
+function logAct(a, x) { S.log.push(Object.assign({ at: new Date().toISOString(), a }, x || {})); const b = $("logcount"); if (b) { b.textContent = S.log.length; b.hidden = !S.log.length; } return S.log[S.log.length - 1]; }
+const labelOf = (k) => S.idItem >= 0 && S.items[S.idItem] ? (S.items[S.idItem].values[k] ?? "") : "";
+function mark(i, k) { const it = S.items[i]; if (!it) return; (it.changed || (it.changed = new Set())).add(k); }
+function shiftMarks(it, k, delta) {
+  if (!it.changed || !it.changed.size) return;
+  const n = new Set();
+  it.changed.forEach((x) => { if (x < k) n.add(x); else if (delta > 0) n.add(x + delta); else if (x > k) n.add(x - 1); });
+  it.changed = n;
+}
+
 /* ---------- Undo ---------- */
-function pushUndo(op) { U.undo.push(op); if (U.undo.length > 500) U.undo.shift(); U.redo = []; renderBarState(); }
+function pushUndo(op, entry) { if (entry) op.log = entry; U.undo.push(op); if (U.undo.length > 500) U.undo.shift(); U.redo = []; renderBarState(); }
 const snapItem = (i) => ({ kind: "item", i, name: S.items[i].name, values: S.items[i].values.slice() });
 const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })), cur: S.cur, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem });
-function applyOp(op) {   // gibt die Gegen-Operation zurück
+function applyOp(op) { const inv = applyOp0(op); inv.log = op.log; return inv; }
+function applyOp0(op) {   // gibt die Gegen-Operation zurück
+  if (op.kind === "delrow") { const vals = S.items.map((it) => { shiftMarks(it, op.k, -1); return it.values.length > op.k ? it.values.splice(op.k, 1)[0] : ""; }); return { kind: "insrow", k: op.k, vals }; }
+  if (op.kind === "insrow") { S.items.forEach((it, i) => { while (it.values.length < op.k) it.values.push(""); it.values.splice(op.k, 0, op.vals ? op.vals[i] ?? "" : ""); shiftMarks(it, op.k, 1); }); return { kind: "delrow", k: op.k }; }
   if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] ?? "", keep: op.keep }; S.items[op.i].values[op.k] = op.v; if (!op.keep) S.cur = op.i; return inv; }
   if (op.kind === "item") { const inv = snapItem(op.i); S.items[op.i].name = op.name; S.items[op.i].values = op.values; S.cur = op.i; return inv; }
   const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1);
@@ -92,6 +108,8 @@ function undo(redo) {
   const from = redo ? U.redo : U.undo, to = redo ? U.undo : U.redo;
   if (!from.length) { toast(T.nothing); return; }
   const op = from.pop(); to.push(applyOp(op));
+  if (op.kind === "cell") mark(op.i, op.k);
+  logAct(redo ? "redo" : "undo", { ref: op.log ? descr(op.log) : "" });
   setDirty(true); if (op.kind === "all") renderBrowser(); else { renderSide(); renderMain(); } toast(redo ? T.redone : T.undone);
 }
 
@@ -104,6 +122,11 @@ async function loadFile(file) {
     if (book.sheets.length > 1) { idx = await chooseSheet(book.sheets); if (idx == null) return; }
     const rows = F.rectangular(await book.load(idx));
     if (!rows.length) throw F.err("empty");
+    S.sheets = null;
+    if (book.sheets.length > 1) {   // die anderen Blätter unverändert mitnehmen
+      S.sheets = [];
+      for (let i = 0; i < book.sheets.length; i++) S.sheets.push(i === idx ? { name: book.sheets[i], cur: true } : { name: book.sheets[i], rows: F.rectangular(await book.load(i)) });
+    }
     S.fileName = file.name.replace(/\.[^.]+$/, ""); S.srcType = book.type; S.delim = book.delim || ","; S.encoding = book.encoding || ""; S.sheet = book.sheets.length > 1 ? book.sheets[idx] : "";
     openSetup(rows, P.orient, null, false);
   } catch (e) {
@@ -113,8 +136,10 @@ async function loadFile(file) {
     $("loaderr").hidden = false;
   } finally { const b = $("busy"); if (b) b.hidden = true; }
 }
-function afterLoad(idItem) {
-  S.loaded = true; S.setup = null; S.cur = 0; S.page = 0; S.idItem = idItem ?? -1; S.filter = ""; S.itemFilter = ""; U.undo = []; U.redo = [];
+function afterLoad(idItem, keepLog) {
+  S.loaded = true; S.setup = null; S.cur = 0; S.page = 0; S.idItem = idItem ?? -1; S.filter = ""; S.itemFilter = ""; S.hideEmpty = false; S.sort = "file"; U.undo = []; U.redo = [];
+  S.saveHandle = null; S.saveFmt = null;
+  if (!keepLog) { S.log = []; logAct("load", { file: S.fileName, sheet: S.sheet, items: S.items.length, entries: maxLen() }); }
   S.dirty = false; render(); toast(T.loaded(S.items.length, maxLen()));
 }
 function chooseSheet(names) {
@@ -122,6 +147,7 @@ function chooseSheet(names) {
     const d = $("dlg");
     d.innerHTML = '<div class="dh"><h2>' + T.sheetT + '</h2></div><div class="db"><p class="muted small" style="margin-top:0">' + T.sheetD + '</p><div class="sheets">' +
       names.map((n, i) => '<button class="btn" data-i="' + i + '">' + esc(n) + "</button>").join("") + '</div></div><div class="df"><button class="btn ghost" data-c="1">' + T.cancel + "</button></div>";
+    d.onchange = null; d.onclose = null;
     d.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; d.close(); res(b.dataset.c ? null : +b.dataset.i); };
     d.showModal();
   });
@@ -224,7 +250,7 @@ function renderSetup() {
 }
 function applySetup() {
   const u = S.setup;
-  if (u.reconf) pushUndo(snapAll());
+  if (u.reconf) pushUndo(snapAll(), logAct("setup", { orient: u.orient }));
   S.items = fromGrid(u.grid, u.orient, u.h, u.d); S.orient = u.orient; S.h = u.h; S.d = u.d;
   if (u.reconf) { S.setup = null; S.idItem = u.lab; S.cur = Math.min(S.cur, S.items.length - 1); S.page = 0; setDirty(true); render(); }
   else { P.orient = u.orient; savePrefs(); afterLoad(u.lab); }
@@ -242,23 +268,42 @@ async function buildFile(fmt, orient, names) {
   const grid = toGrid(orient, names), sheet = S.sheet || S.fileName || "jellytable";
   const hd = names ? S.d : 0, hn = names ? S.h : -1;
   const bold = orient === "cols" ? { boldRow: hn, freezeRows: hd } : { boldCol: hn, freezeCols: hd };
-  if (fmt === "xlsx") return F.writeXLSX(grid, sheet, bold);
-  if (fmt === "ods") return F.writeODS(grid, sheet);
+  // weitere Tabellenblätter der Originaldatei unverändert mitschreiben (nur Werte)
+  const all = S.sheets ? S.sheets.map((x) => x.cur ? { name: x.name, rows: grid, opt: bold } : { name: x.name, rows: x.rows, opt: {} }) : [{ name: sheet, rows: grid, opt: bold }];
+  if (fmt === "xlsx") return F.writeXLSX(all);
+  if (fmt === "ods") return F.writeODS(all);
   if (fmt === "csv") return new Blob([F.toCSV(grid, ",", false)]);
   if (fmt === "csvx") return new Blob([F.toCSV(grid, ";", true)]);
   if (fmt === "tsv") return new Blob([F.toCSV(grid, "\t", false)]);
-  if (fmt === "xml") return new Blob([F.writeXML2003(grid, sheet)]);
+  if (fmt === "xml") return new Blob([F.writeXML2003(all)]);
   return new Blob([JSON.stringify({ file: S.fileName, layout: orient, items: S.items.map((it, i) => ({ name: itemName(it, i), details: it.meta || [], values: it.values })) }, null, 2)]);
 }
-async function download(fmt, orient, names, base) {
-  const blob = new Blob([await buildFile(fmt, orient, names)], { type: FMT[fmt].mime });
-  const name = (base || S.fileName || "jellytable").replace(/[\\/:*?"<>|]+/g, "-") + "." + FMT[fmt].ext;
+// Speichern: Chrome/Edge fragen beim ersten Mal nach dem Speicherort und schreiben danach direkt dorthin
+// (File System Access API). Firefox/Safari: Download. Die Originaldatei wird nie automatisch überschrieben.
+const canPick = () => typeof window.showSaveFilePicker === "function" && !window.__jtNoPicker;
+async function saveBlob(blob, name, fmt, ask) {
+  if (canPick()) {
+    try {
+      let h = !ask && S.saveHandle && S.saveFmt === fmt ? S.saveHandle : null;
+      if (!h) h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: T.fmts[fmt] ? T.fmts[fmt][0] : name, accept: { [FMT[fmt].mime]: ["." + FMT[fmt].ext] } }] });
+      const w = await h.createWritable(); await w.write(blob); await w.close();
+      S.saveHandle = h; S.saveFmt = fmt; return h.name;
+    } catch (e) { if (e && e.name === "AbortError") return null; console.warn("save picker", e); }
+  }
   const url = URL.createObjectURL(blob), a = document.createElement("a");
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
-  P.lastFmt = fmt; savePrefs(); setDirty(false); toast(T.saved + "  " + name);
+  return name;
 }
-const quickSave = () => S.loaded && download(defaultFmt(), S.orient, true);
+async function download(fmt, orient, names, base, ask) {
+  const blob = new Blob([await buildFile(fmt, orient, names)], { type: FMT[fmt].mime });
+  const name = (base || S.fileName || "jellytable").replace(/[\\/:*?"<>|]+/g, "-") + "." + FMT[fmt].ext;
+  const saved = await saveBlob(blob, name, fmt, ask);
+  if (!saved) return;
+  P.lastFmt = fmt; savePrefs(); setDirty(false); logAct("save", { file: saved }); toast(T.saved + "  " + saved);
+}
+const quickSave = () => S.loaded && download(defaultFmt(), S.orient, true, null, false);
+const ONE_SHEET = { csv: 1, csvx: 1, tsv: 1, json: 1 };
 function exportDialog() {
   if (!S.loaded) return;
   const d = $("dlg"), cur = defaultFmt();
@@ -266,13 +311,16 @@ function exportDialog() {
     Object.keys(FMT).map((k) => '<label class="fmt"><input type="radio" name="fmt" value="' + k + '"' + (k === cur ? " checked" : "") + "><span><b>" + T.fmts[k][0] + "</b><small>" + T.fmts[k][1] + "</small></span></label>").join("") + "</div>" +
     '<label class="field">' + T.orientT + '<select name="orient"><option value="cols"' + (S.orient === "cols" ? " selected" : "") + ">" + T.colsT + '</option><option value="rows"' + (S.orient === "rows" ? " selected" : "") + ">" + T.rowsT + "</option></select></label>" +
     '<label class="check"><input type="checkbox" name="names" checked>' + T.namesT + "</label>" +
-    '<label class="field">' + T.fileT + '<input name="base" value="' + esc(S.fileName || "jellytable") + '" spellcheck="false"></label></div>' +
+    '<label class="field">' + T.fileT + '<input name="base" value="' + esc(S.fileName || "jellytable") + '" spellcheck="false"></label>' +
+    (S.sheets ? '<p class="note" id="sheetnote"></p>' : "") + '<p class="small muted" style="margin:10px 0 0">' + (canPick() ? T.saveWhereChrome : T.saveWhereOther) + "</p></div>" +
     '<div class="df"><button class="btn ghost" value="cancel">' + T.cancel + '</button><button class="btn primary" value="ok">' + ICON.export + " " + T.doExport + "</button></div></form>";
   d.onclick = null;
+  const note = () => { const n = $("sheetnote"); if (!n) return; const f = d.querySelector("form").fmt.value; n.textContent = ONE_SHEET[f] ? T.sheetOne(S.sheets.length - 1) : T.sheetAll(S.sheets.length - 1); n.classList.toggle("warn", !!ONE_SHEET[f]); };
+  d.onchange = note; note();
   d.onclose = () => {
     if (d.returnValue !== "ok") return;
     const f = d.querySelector("form");
-    download(f.fmt.value, f.orient.value, f.names.checked, f.base.value.trim());
+    download(f.fmt.value, f.orient.value, f.names.checked, f.base.value.trim(), true);
   };
   d.returnValue = ""; d.showModal();
 }
@@ -287,7 +335,7 @@ const DB = {
 function autosaveSoon() {
   if (!P.autosave || !S.loaded) return;
   clearTimeout(autosaveSoon.h);
-  autosaveSoon.h = setTimeout(() => DB.put({ items: S.items, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem, fileName: S.fileName, srcType: S.srcType, delim: S.delim, sheet: S.sheet, at: new Date().toISOString() }).catch(() => {}), 800);
+  autosaveSoon.h = setTimeout(() => DB.put({ items: S.items, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem, sheets: S.sheets, log: S.log, fileName: S.fileName, srcType: S.srcType, delim: S.delim, sheet: S.sheet, at: new Date().toISOString() }).catch(() => {}), 800);
 }
 
 /* ---------- Rendern: Menüzeile ---------- */
@@ -296,9 +344,10 @@ function renderBar() {
   $("bar").innerHTML =
     '<a class="brand" href="#" data-act="home" title="jellytable">' + LOGO + "<span><b>jellytable</b><small>" + T.tagline + "</small></span></a>" +
     '<div class="fileinfo">' + (S.loaded ? '<button class="ib sidetoggle" data-act="side" title="' + T.showItems + '">' + ICON.list + '</button><input class="fname" id="fname" value="' + esc(S.fileName) + '" title="' + T.fileNameTitle + '" spellcheck="false">' +
-      '<span class="pill" id="fmtpill">' + esc([S.srcType.toUpperCase(), S.sheet, S.srcType === "csv" ? (S.delim === "\t" ? "TAB" : S.delim) : "", S.encoding].filter(Boolean).join(" · ")) + '</span><span class="pill dirty" id="dirtypill" hidden>● ' + T.unsaved + "</span>" : "") + "</div>" +
+      '<span class="pill" id="fmtpill">' + esc([S.srcType.toUpperCase(), S.sheet + (S.sheets ? " (" + S.sheets.length + " " + T.sheetsWord + ")" : ""), S.srcType === "csv" ? (S.delim === "\t" ? "TAB" : S.delim) : "", S.encoding].filter(Boolean).join(" · ")) + '</span><span class="pill dirty" id="dirtypill" hidden>● ' + T.unsaved + "</span>" : "") + "</div>" +
     '<div class="tools">' +
       '<button class="ib w" data-act="open" title="' + T.open + ' (Ctrl+O)">' + ICON.open + '<span class="lbl">' + T.open + "</span></button>" +
+      (S.loaded ? '<button class="ib w" data-act="reorient" title="' + T.reorientD + '">' + ICON.table + '<span class="lbl">' + T.setupBtn + '</span></button><button class="ib w" data-act="log" title="' + T.logT + '">' + ICON.history + '<span class="lbl">' + T.logBtn + '</span><span class="cnt" id="logcount"' + (S.log.length ? "" : " hidden") + ">" + S.log.length + '</span></button><span class="sep"></span>' : "") +
       (S.loaded ? '<button class="ib primary" data-act="save" title="' + T.save + ' (Ctrl+S)">' + ICON.save + '<span class="lbl">' + T.save + '</span></button><button class="ib w" data-act="export" title="' + T.export + ' (Ctrl+E)">' + ICON.export + '<span class="lbl">' + T.export + "</span></button>" +
         '<span class="sep"></span><button class="ib w" id="bundo" data-act="undo" title="' + T.undo + ' (Ctrl+Z)">' + ICON.undo + '</button><button class="ib w" id="bredo" data-act="redo" title="' + T.redo + ' (Ctrl+Y)">' + ICON.redo + "</button>" : "") +
       '<span class="sep"></span><button class="ib w" data-act="lang" title="' + T.langTitle + '" lang="' + (P.lang === "de" ? "en" : "de") + '">' + T.langBtn + "</button>" +
@@ -318,9 +367,9 @@ function toggleMenu() {
   m = document.createElement("div"); m.className = "menu"; m.id = "menu";
   const th = document.documentElement.getAttribute("data-theme");
   m.innerHTML = '<div class="nw"><button data-act="open">' + ICON.open + "<span>" + T.open + "</span></button>" +
-    (S.loaded ? '<button data-act="export">' + ICON.export + "<span>" + T.export + '</span></button><button data-act="undo"' + (U.undo.length ? "" : " disabled") + ">" + ICON.undo + "<span>" + T.undo + '</span></button><button data-act="redo"' + (U.redo.length ? "" : " disabled") + ">" + ICON.redo + "<span>" + T.redo + "</span></button>" : "") +
+    (S.loaded ? '<button data-act="log">' + ICON.history + "<span>" + T.logT + '</span></button><button data-act="export">' + ICON.export + "<span>" + T.export + '</span></button><button data-act="undo"' + (U.undo.length ? "" : " disabled") + ">" + ICON.undo + "<span>" + T.undo + '</span></button><button data-act="redo"' + (U.redo.length ? "" : " disabled") + ">" + ICON.redo + "<span>" + T.redo + "</span></button>" : "") +
     '<button data-act="lang"><span class="kbd">' + T.langBtn + "</span><span>" + T.langTitle + '</span></button><button data-act="theme">' + (th === "light" ? ICON.moon : ICON.sun) + "<span>" + T.theme + "</span></button><hr></div>" +
-    (S.loaded ? '<button data-act="reorient">' + ICON.flip + "<span>" + T.reorient + "<small>" + T.reorientD + "</small></span></button>" : "") +
+    (S.loaded ? '<button data-act="reorient">' + ICON.table + "<span>" + T.reorient + "<small>" + T.reorientD + "</small></span></button>" : "") +
     '<label><input type="checkbox" data-act="autosave"' + (P.autosave ? " checked" : "") + "><span>" + T.autosave + "<small>" + T.autosaveD + "</small></span></label>" +
     '<button data-act="forget">' + ICON.trash + "<span>" + T.forget + "<small>" + T.forgetD + "</small></span></button><hr>" +
     '<button data-act="shortcuts">' + ICON.key + "<span>" + T.shortcuts + '</span></button><button data-act="about">' + ICON.info + "<span>" + T.about + "</span></button>";
@@ -381,10 +430,16 @@ function renderSide() {
   const rn = $("rn"); if (rn) { rn.focus(); rn.select(); }
   const on = ul.querySelector(".it.on"); if (on && !rn) on.scrollIntoView({ block: "nearest" });
 }
+// Ansicht: Suche, leere ausblenden, Sortierung -> Liste von Positionen (null = Datei-Reihenfolge, alles)
 function matches() {
   const it = S.items[S.cur], q = S.filter.trim().toLowerCase();
-  if (!q) return null;
-  const out = []; it.values.forEach((v, k) => { if (v.toLowerCase().includes(q)) out.push(k); });
+  if (!q && !S.hideEmpty && S.sort === "file") return null;
+  let out = [];
+  it.values.forEach((v, k) => { if ((!q || v.toLowerCase().includes(q)) && (!S.hideEmpty || v !== "")) out.push(k); });
+  const V = it.values, cmp = (a, b) => (V[a] === "") - (V[b] === "") || V[a].localeCompare(V[b], undefined, { numeric: true, sensitivity: "base" }) || a - b;
+  if (S.sort === "az") out.sort(cmp);
+  if (S.sort === "za") out.sort((a, b) => (V[a] === "") - (V[b] === "") || -cmp(a, b) || a - b);
+  if (S.sort === "freq") { const c = new Map(); out.forEach((k) => c.set(V[k], (c.get(V[k]) || 0) + 1)); out.sort((a, b) => (V[a] === "") - (V[b] === "") || c.get(V[b]) - c.get(V[a]) || cmp(a, b)); }
   return out;
 }
 function renderMain() {
@@ -399,16 +454,22 @@ function renderMain() {
     '<button class="mini" data-act="move" data-k="-1" title="' + T.up + '">' + ICON.up + '</button><button class="mini" data-act="move" data-k="1" title="' + T.down + '">' + ICON.down + "</button></div>";
   if (metaText(it)) h += '<p class="imeta">' + esc(metaText(it)) + "</p>";
   const posLbl = it.label && it.label !== "+" ? (S.orient === "cols" ? T.colN(it.label) : T.rowN(it.label)) : T.newItem;
-  h += '<div class="stats"><span class="chip where" title="' + (S.orient === "cols" ? T.colsT : T.rowsT) + '">' + ORIENT_SVG(S.orient === "rows") + "<b>" + esc(posLbl) + "</b> · " + (S.orient === "cols" ? T.colsT : T.rowsT) + '</span><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
+  h += '<div class="stats"><button class="chip where" data-act="reorient" title="' + T.reorientD + '">' + ORIENT_SVG(S.orient === "rows") + "<b>" + esc(posLbl) + "</b> · " + (S.orient === "cols" ? T.colsT : T.rowsT) + " " + ICON.pen + '</button><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
   if (distinct > 0 && distinct <= 12 && filled > distinct) {
     const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true })), mx = top[0][1];
     h += '<div class="dist">' + top.map(([v, c]) => '<div class="row"><span title="' + esc(v) + '">' + esc(v) + '</span><i style="width:' + Math.max(3, Math.round(100 * c / mx)) + '%"></i><em>' + c + "</em></div>").join("") + "</div>";
   }
   h += '<div class="etools"><label>' + T.labelAt + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
     '<span class="fitsel">' + T.fitT + ' <span class="seg2 small"><button class="' + (P.fit ? "on" : "") + '" data-act="fit" data-k="1">' + T.fitOn + '</button><button class="' + (!P.fit ? "on" : "") + '" data-act="fit" data-k="0">' + T.fitOff + "</button></span></span>" +
-    '<span class="grow"></span><div class="search" style="min-width:200px">' + ICON.search + '<input type="search" id="esearch" placeholder="' + T.filter + '" value="' + esc(S.filter) + '"></div></div>';
+    '<span class="grow"></span><div class="search" style="min-width:200px">' + ICON.search + '<input type="search" id="esearch" placeholder="' + T.filter + '" value="' + esc(S.filter) + '"></div>' +
+    '<div class="erow">' +
+      '<span class="fitsel">' + T.scopeT + ' <span class="seg2 small"><button class="' + (P.rowMode ? "on" : "") + '" data-act="scope" data-k="1" title="' + T.scopeAllD + '">' + (S.orient === "cols" ? T.scopeRow : T.scopeCol) + '</button><button class="' + (!P.rowMode ? "on" : "") + '" data-act="scope" data-k="0" title="' + T.scopeOneD + '">' + T.scopeOne + "</button></span></span>" +
+      '<label class="check" style="margin:0"><input type="checkbox" id="hideempty"' + (S.hideEmpty ? " checked" : "") + ">" + T.hideEmpty + "</label>" +
+      '<label>' + T.sortT + ' <select id="sortsel">' + [["file", T.sortFile], ["az", T.sortAZ], ["za", T.sortZA], ["freq", T.sortFreq]].map((o) => '<option value="' + o[0] + '"' + (S.sort === o[0] ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select></label>" +
+      '<label>' + T.gotoT + ' <input type="number" id="goto" min="1" max="' + Math.max(1, n) + '" placeholder="1–' + n + '"></label>' +
+    "</div></div>";
   const m = matches();
-  h += m ? '<p class="hint">' + T.hits(m.length) + "</p>" : '<p class="hint">' + T.hint + "</p>";
+  h += m ? '<p class="hint">' + (S.filter.trim() ? T.hits(m.length) + " · " : "") + T.viewNote + "</p>" : '<p class="hint">' + (P.rowMode ? (S.orient === "cols" ? T.hintRow : T.hintCol) : T.hint) + "</p>";
   let idx;
   if (m) idx = m.slice(S.page * PAGE, S.page * PAGE + PAGE);
   else { const a = S.page * PAGE; idx = []; for (let k = a; k < Math.min(n, a + PAGE); k++) idx.push(k); }
@@ -422,7 +483,8 @@ function renderMain() {
     const v = vals[k];
     const lab = idVals ? '<input class="lab" data-lk="' + k + '" value="' + esc(idVals[k] ?? "") + '" placeholder="' + T.noLabel + '" spellcheck="false" aria-label="' + esc(T.labelAt) + " " + (k + 1) + '">'
       : '<span class="pos" title="' + esc(T.labHint) + '">' + esc(S.orient === "cols" ? T.rowN(k + S.d + 1) : T.colN(F.colName(k + S.d))) + "</span>";
-    list += '<li class="entry"><span class="no">' + (k + 1) + '</span><div class="ebox"><div class="elab">' + lab + '</div><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea></div><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
+    const chg = it.changed && it.changed.has(k);
+    list += '<li class="entry' + (chg ? " chg" : "") + '" id="e' + k + '"><span class="no">' + (k + 1) + '</span><div class="ebox"><div class="elab">' + lab + (chg ? '<span class="chgmark" title="' + T.changedT + '">' + T.changed + "</span>" : "") + '</div><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea></div><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
   });
   if (!m && S.page === pages - 1) list += '<li class="gap edge"><button class="add" data-act="ins" data-k="' + n + '">' + ICON.plus + T.addLast + "</button></li>";
   h += '<ul class="entries" id="entries">' + list + "</ul>";
@@ -445,29 +507,39 @@ function render() {
 }
 
 /* ---------- Bearbeiten ---------- */
-function insertEntry(k) { pushUndo(snapItem(S.cur)); S.items[S.cur].values.splice(k, 0, ""); setDirty(true); renderSide(); renderMain(); toast(T.inserted); const ta = document.querySelector('textarea[data-k="' + k + '"]'); if (ta) ta.focus(); }
-function deleteEntry(k) { pushUndo(snapItem(S.cur)); S.items[S.cur].values.splice(k, 1); setDirty(true); renderSide(); renderMain(); toast(T.removed); }
-function renameItem(i, name) { if (S.items[i].name === name) return; pushUndo(snapItem(i)); S.items[i].name = name; setDirty(true); }
+function insertEntry(k) {
+  if (P.rowMode) { const inv = applyOp0({ kind: "insrow", k }); pushUndo(inv, logAct("insrow", { k, item: itemName(S.items[S.cur], S.cur) })); }
+  else { const it = S.items[S.cur]; pushUndo(snapItem(S.cur), logAct("insert", { item: itemName(it, S.cur), k, label: labelOf(k) })); it.values.splice(k, 0, ""); shiftMarks(it, k, 1); }
+  setDirty(true); renderSide(); renderMain(); toast(P.rowMode ? T.insertedRow : T.inserted);
+  const ta = document.querySelector('textarea[data-k="' + k + '"]'); if (ta) ta.focus();
+}
+function deleteEntry(k) {
+  const it = S.items[S.cur];
+  if (P.rowMode) { const lab = labelOf(k), from = it.values[k] ?? ""; const inv = applyOp0({ kind: "delrow", k }); pushUndo(inv, logAct("delrow", { k, label: lab, item: itemName(it, S.cur), from })); }
+  else { pushUndo(snapItem(S.cur), logAct("delete", { item: itemName(it, S.cur), k, label: labelOf(k), from: it.values[k] ?? "" })); it.values.splice(k, 1); shiftMarks(it, k, -1); }
+  setDirty(true); renderSide(); renderMain(); toast(P.rowMode ? T.removedRow : T.removed);
+}
+function renameItem(i, name) { if (S.items[i].name === name) return; pushUndo(snapItem(i), logAct("rename", { from: itemName(S.items[i], i), to: name })); S.items[i].name = name; setDirty(true); }
 function addItem() {
-  pushUndo(snapAll());
+  pushUndo(snapAll(), logAct("additem", {}));
   S.items.splice(S.cur + 1, 0, { name: T.newItem, label: "+", meta: new Array(Math.max(0, S.d - (S.h >= 0 ? 1 : 0))).fill(""), values: new Array(maxLen()).fill("") });
   if (S.h < 0) { S.h = 0; S.d += 1; S.items.forEach((x) => { if (x.name === undefined) x.name = ""; }); }
   S.cur++; S.renaming = -2; S.page = 0; setDirty(true); renderSide(); renderMain();
 }
 function deleteItem(i) {
   if (!confirm(T.delItemQ(itemName(S.items[i], i)))) return;
-  pushUndo(snapAll()); S.items.splice(i, 1);
+  pushUndo(snapAll(), logAct("delitem", { item: itemName(S.items[i], i) })); S.items.splice(i, 1);
   if (S.idItem === i) S.idItem = -1; else if (S.idItem > i) S.idItem--;
   if (S.cur >= S.items.length) S.cur = S.items.length - 1;
   setDirty(true); renderSide(); renderMain();
 }
 function moveItem(d) {
   const i = S.cur, j = i + d; if (j < 0 || j >= S.items.length) return;
-  pushUndo(snapAll()); const t = S.items[i]; S.items[i] = S.items[j]; S.items[j] = t;
+  pushUndo(snapAll(), logAct("move", { item: itemName(S.items[i], i), dir: d })); const t = S.items[i]; S.items[i] = S.items[j]; S.items[j] = t;
   if (S.idItem === i) S.idItem = j; else if (S.idItem === j) S.idItem = i;
   S.cur = j; setDirty(true); renderSide(); renderMain();
 }
-function pick(i) { if (i === S.cur) return; S.cur = i; S.page = 0; S.filter = ""; S.renaming = -1; S.sideOpen = false; const b = $("browser"); if (b) b.classList.remove("sideopen"); renderSide(); renderMain(); $("main").scrollTop = 0; }
+function pick(i) { if (i === S.cur) return; S.cur = i; S.page = 0; S.filter = ""; S.hideEmpty = false; S.sort = "file"; S.renaming = -1; S.sideOpen = false; const b = $("browser"); if (b) b.classList.remove("sideopen"); renderSide(); renderMain(); $("main").scrollTop = 0; }
 /* ---------- Ereignisse ---------- */
 document.addEventListener("click", async (e) => {
   const menu = $("menu");
@@ -486,7 +558,7 @@ document.addEventListener("click", async (e) => {
   else if (a === "menu") toggleMenu();
   else if (a === "orient") { P.orient = k; savePrefs(); renderStart(); }
   else if (a === "sample") { const f = new File([sampleCSV()], T.sampleName + ".csv", { type: "text/csv" }); P.orient = "cols"; savePrefs(); loadFile(f); }
-  else if (a === "restore") { const s = await DB.get(); if (s) { Object.assign(S, { items: s.items, orient: s.orient, h: s.h ?? 0, d: s.d ?? 1, fileName: s.fileName, srcType: s.srcType, delim: s.delim, sheet: s.sheet, encoding: "" }); afterLoad(s.idItem); S.dirty = true; renderBarState(); } }
+  else if (a === "restore") { const s = await DB.get(); if (s) { Object.assign(S, { items: s.items, orient: s.orient, h: s.h ?? 0, d: s.d ?? 1, fileName: s.fileName, srcType: s.srcType, delim: s.delim, sheet: s.sheet, sheets: s.sheets || null, log: s.log || [], encoding: "" }); afterLoad(s.idItem, true); S.dirty = true; renderBarState(); } }
   else if (a === "discard") { await DB.clear(); $("restore").innerHTML = ""; }
   else if (a === "side") { S.sideOpen = !S.sideOpen; $("browser").classList.toggle("sideopen", S.sideOpen); }
   else if (a === "pick" && !e.target.closest(".acts") && !e.target.closest("input")) pick(i);
@@ -503,6 +575,9 @@ document.addEventListener("click", async (e) => {
   else if (a === "su-apply") applySetup();
   else if (a === "su-cancel") { const re = S.setup && S.setup.reconf; S.setup = null; if (!re) S.loaded = false; render(); }
   else if (a === "fit") { P.fit = k === "1"; savePrefs(); renderMain(); }
+  else if (a === "scope") { P.rowMode = k === "1"; savePrefs(); renderMain(); }
+  else if (a === "log") { $("menu")?.remove(); logDialog(); }
+  else if (a === "logcsv") { const b = new Blob([F.toCSV(logRows(), ";", true)], { type: "text/csv" }); const nm = await saveBlob(b, (S.fileName || "jellytable") + "-" + T.logFile + ".csv", "csvx", true); if (nm) toast(T.saved + "  " + nm); }
   else if (a === "forget") { $("menu")?.remove(); await DB.clear(); try { localStorage.removeItem(PKEY); } catch (er) {} P.autosave = false; toast(T.forgotten); }
   else if (a === "shortcuts" || a === "about") { $("menu")?.remove(); info(a); }
 });
@@ -510,18 +585,21 @@ document.addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset && t.dataset.act === "autosave") { P.autosave = t.checked; savePrefs(); if (P.autosave) autosaveSoon(); else DB.clear(); }
   if (t.id === "idsel") { S.idItem = +t.value; renderMain(); }
+  if (t.id === "hideempty") { S.hideEmpty = t.checked; S.page = 0; renderMain(); }
+  if (t.id === "sortsel") { S.sort = t.value; S.page = 0; renderMain(); }
+  if (t.id === "goto") gotoEntry(+t.value - 1);
   if (t.id === "su-names") { const u = S.setup; u.h = +t.value; if (u.d <= u.h) u.d = u.h + 1; renderSetup(); }
   if (t.id === "su-data") { S.setup.d = +t.value; renderSetup(); }
   if (t.id === "su-lab") { S.setup.lab = +t.value; renderSetup(); }
   if (t.id === "fname") { S.fileName = t.value.trim() || "jellytable"; renderBarState(); autosaveSoon(); }
   if (t.classList.contains("lab") && S.idItem >= 0) {
     const k = +t.dataset.lk, before = t.dataset.before;
-    if (before != null && before !== t.value) pushUndo({ kind: "cell", i: S.idItem, k, v: before, keep: true });
+    if (before != null && before !== t.value) { pushUndo({ kind: "cell", i: S.idItem, k, v: before, keep: true }, logAct("label", { item: itemName(S.items[S.idItem], S.idItem), k, from: before, to: t.value })); mark(S.idItem, k); }
     t.dataset.before = t.value;
   }
   if (t.tagName === "TEXTAREA" && t.dataset.k != null) {
     const k = +t.dataset.k, before = t.dataset.before;
-    if (before != null && before !== t.value) { pushUndo({ kind: "cell", i: S.cur, k, v: before }); renderSide(); }
+    if (before != null && before !== t.value) { pushUndo({ kind: "cell", i: S.cur, k, v: before }, logAct("edit", { item: itemName(S.items[S.cur], S.cur), k, label: labelOf(k), from: before, to: t.value })); mark(S.cur, k); renderSide(); const li = t.closest(".entry"); if (li && !li.classList.contains("chg")) { li.classList.add("chg"); const el = li.querySelector(".elab"); if (el) el.insertAdjacentHTML("beforeend", '<span class="chgmark" title="' + T.changedT + '">' + T.changed + "</span>"); } }
     t.dataset.before = t.value;
   }
 });
@@ -549,6 +627,9 @@ document.addEventListener("keydown", (e) => {
   if (mod && e.key.toLowerCase() === "e") { e.preventDefault(); exportDialog(); return; }
   if (!typing && mod && e.key.toLowerCase() === "z") { e.preventDefault(); undo(e.shiftKey); return; }
   if (!typing && mod && e.key.toLowerCase() === "y") { e.preventDefault(); undo(true); return; }
+  // Strg+Enter: nächster Eintrag, Strg+Umschalt+Enter: vorheriger (6)
+  if (mod && e.key === "Enter" && t.tagName === "TEXTAREA" && t.dataset.k != null) { e.preventDefault(); stepEntry(t, e.shiftKey ? -1 : 1); return; }
+  if (t.id === "goto" && e.key === "Enter") { e.preventDefault(); gotoEntry(+t.value - 1); return; }
   if (e.altKey && (e.key === "ArrowDown" || e.key === "ArrowUp") && S.loaded) { e.preventDefault(); const j = S.cur + (e.key === "ArrowDown" ? 1 : -1); if (j >= 0 && j < S.items.length) pick(j); }
 });
 document.addEventListener("focusout", (e) => {
@@ -571,12 +652,63 @@ document.addEventListener("pointerdown", (e) => {
 });
 document.addEventListener("dblclick", (e) => { if (e.target.closest && e.target.closest("#resizer")) setSideW(300, true); });
 document.addEventListener("keydown", (e) => { if (e.target.id === "resizer" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setSideW(P.sideW + (e.key === "ArrowRight" ? 20 : -20), true); } });
+// ---------- Navigation (6) ----------
+function stepEntry(t, dir) {
+  const tas = Array.from(document.querySelectorAll(".entry textarea")), i = tas.indexOf(t), n = tas[i + dir];
+  t.dispatchEvent(new Event("change", { bubbles: true }));
+  if (n) { n.focus(); n.scrollIntoView({ block: "nearest" }); return; }
+  const m = matches(), total = m ? m.length : S.items[S.cur].values.length, pages = Math.ceil(total / PAGE);
+  const np = S.page + dir; if (np < 0 || np >= pages) return;
+  S.page = np; renderMain();
+  const list = document.querySelectorAll(".entry textarea"), f = dir > 0 ? list[0] : list[list.length - 1];
+  if (f) { f.focus(); f.scrollIntoView({ block: "nearest" }); }
+}
+function gotoEntry(k) {
+  const n = S.items[S.cur].values.length;
+  if (!(k >= 0 && k < n)) { toast(T.gotoBad(n)); return; }
+  S.filter = ""; S.hideEmpty = false; S.sort = "file"; S.page = Math.floor(k / PAGE); renderMain();
+  const li = $("e" + k);
+  if (li) { li.scrollIntoView({ block: "center" }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1400); const ta = li.querySelector("textarea"); if (ta) ta.focus({ preventScroll: true }); }
+}
+// ---------- Änderungsprotokoll: Dialog + CSV (4) ----------
+function descr(x) {
+  const L = (k) => "#" + (k + 1) + (x.label ? " (" + x.label + ")" : "");
+  switch (x.a) {
+    case "load": return T.lg.load(x.file, x.items, x.entries);
+    case "edit": return T.lg.edit(x.item, L(x.k));
+    case "label": return T.lg.label(x.item, "#" + (x.k + 1));
+    case "insert": return T.lg.insert(x.item, "#" + (x.k + 1));
+    case "delete": return T.lg.del(x.item, L(x.k));
+    case "insrow": return T.lg.insrow("#" + (x.k + 1));
+    case "delrow": return T.lg.delrow(L(x.k));
+    case "rename": return T.lg.rename(x.from, x.to);
+    case "additem": return T.lg.additem;
+    case "delitem": return T.lg.delitem(x.item);
+    case "move": return T.lg.move(x.item);
+    case "setup": return T.lg.setup;
+    case "save": return T.lg.save(x.file);
+    case "undo": return T.lg.undo(x.ref);
+    case "redo": return T.lg.redo(x.ref);
+  }
+  return x.a;
+}
+function logRows() {
+  return [T.logHead].concat(S.log.map((x) => [new Date(x.at).toLocaleString(P.lang), descr(x), x.item || "", x.k != null ? String(x.k + 1) : "", x.label || "", x.from ?? "", x.to ?? ""]));
+}
+function logDialog() {
+  const d = $("dlg"), fmtT = (iso) => new Date(iso).toLocaleTimeString(P.lang, { hour: "2-digit", minute: "2-digit" });
+  const rows = S.log.slice().reverse().map((x) => '<li><time>' + fmtT(x.at) + "</time><div><b>" + esc(descr(x)) + "</b>" +
+    (x.from != null || x.to != null ? '<div class="chg2">' + (x.from != null ? "<del>" + esc(x.from || "∅") + "</del>" : "") + (x.to != null ? " → <ins>" + esc(x.to || "∅") + "</ins>" : "") + "</div>" : "") + "</div></li>").join("");
+  d.innerHTML = '<div class="dh"><h2>' + T.logT + '</h2><span class="muted small">' + T.logCount(S.log.length) + '</span></div><div class="db"><p class="small muted" style="margin-top:0">' + T.logD + '</p><ul class="loglist">' + rows + "</ul></div>" +
+    '<div class="df"><button class="btn" data-act="logcsv">' + ICON.export + " " + T.logCsv + '</button><button class="btn primary" data-c="1">' + T.close + "</button></div>";
+  d.onclick = (e) => { if (e.target.closest("[data-c]")) d.close(); }; d.onclose = null; d.onchange = null; d.showModal();
+}
 function info(kind) {
   const d = $("dlg");
   d.innerHTML = '<div class="dh"><h2>' + (kind === "about" ? T.about : T.shortcuts) + '</h2></div><div class="db">' +
     (kind === "about" ? T.aboutD : '<div class="shortcuts">' + T.sc.map((s) => '<span class="kbd">' + s[0] + "</span><span>" + s[1] + "</span>").join("") + "</div>") +
     '</div><div class="df"><button class="btn" data-c="1">' + T.close + "</button></div>";
-  d.onclick = (e) => { if (e.target.closest("[data-c]")) d.close(); }; d.onclose = null; d.showModal();
+  d.onclick = (e) => { if (e.target.closest("[data-c]")) d.close(); }; d.onclose = null; d.onchange = null; d.showModal();
 }
 $("file").addEventListener("change", async (e) => {
   const f = e.target.files[0]; e.target.value = "";
@@ -595,5 +727,5 @@ function applyTheme() {
 document.documentElement.lang = P.lang;
 applyTheme(); render();
 matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (!P.theme) { applyTheme(); renderBar(); } });
-window.__jt = { S, F, toGrid, fromGrid };   // für Tests
+window.__jt = { S, P, F, toGrid, fromGrid };   // für Tests
 })();

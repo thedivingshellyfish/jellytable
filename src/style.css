@@ -250,3 +250,31 @@ table.prev { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
 .orient:not(.on):hover { opacity: 1; }
 .chip.where { display: inline-flex; align-items: center; gap: 6px; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .chip.where svg { width: 26px; height: 17px; }
+
+/* ---------- Änderungen, Ansicht, Navigation ---------- */
+.ib .cnt { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
+.erow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 13px; color: var(--text2); }
+.erow label { display: inline-flex; align-items: center; gap: 6px; }
+.erow select, .erow input[type=number] { border-radius: 9px; border: 1px solid var(--line2); background: var(--card2); padding: 5px 8px; }
+.erow input[type=number] { width: 92px; }
+button.chip { cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; }
+button.chip:hover { border-color: var(--accent); color: var(--text); }
+.chip.where svg.i { width: 13px; height: 13px; opacity: .7; }
+.entry.chg textarea { border-left: 3px solid var(--warn); }
+.chgmark { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--warn); margin-left: 8px; align-self: center; }
+.entry.flash textarea { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 55%, transparent); }
+.loglist { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; }
+.loglist:empty::after { content: "–"; display: block; padding: 14px; color: var(--muted); }
+.loglist li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.loglist li:last-child { border-bottom: 0; }
+.loglist time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; padding-top: 1px; }
+.loglist b { font-weight: 650; }
+.chg2 { font-size: 12.5px; color: var(--text2); margin-top: 2px; word-break: break-word; }
+.chg2 del { color: var(--bad); text-decoration-color: color-mix(in srgb, var(--bad) 60%, transparent); }
+.chg2 ins { color: var(--good); text-decoration: none; }
+.note { font-size: 13px; margin: 12px 0 0; padding: 9px 11px; border-radius: 10px; background: color-mix(in srgb, var(--accent2) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent2) 30%, var(--line)); }
+.note.warn { background: color-mix(in srgb, var(--warn) 12%, var(--card)); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+@media (max-width: 1360px) { .bar .ib.w .lbl { display: none; } .bar .ib.w { padding: 0 9px; } }
+.fileinfo { overflow: hidden; }
+.fileinfo .pill { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+.fname { flex: 1 1 140px; }

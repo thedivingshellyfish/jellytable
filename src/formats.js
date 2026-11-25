@@ -337,7 +337,17 @@ F.open = async function (file) {
 
 /* ---------- Schreiben ---------- */
 const sheetName = (s) => (String(s || "Sheet1").replace(/[\[\]:*?/\\]/g, "-").slice(0, 31).trim() || "Sheet1");
-F.writeXLSX = async function (rows, name, opt) {
+// Mehrere Tabellenblätter: sheets = [{ name, rows, opt }]. Alte Form (rows, name, opt) geht weiter.
+const asSheets = (a, name, opt) => (!a.length || Array.isArray(a[0])) ? [{ name, rows: a, opt: opt || {} }] : a;
+const uniqueNames = (list) => {
+  const seen = new Set();
+  return list.map((n) => {
+    const base = sheetName(n); let s = base, k = 2;
+    while (seen.has(s.toLowerCase())) { const suf = " (" + k++ + ")"; s = base.slice(0, 31 - suf.length) + suf; }
+    seen.add(s.toLowerCase()); return s;
+  });
+};
+function xlsxSheet(rows, opt) {
   opt = opt || {};
   const cell = (v, r, c) => {
     const ref = F.colName(c) + (r + 1), st = (opt.boldRow != null && opt.boldRow >= 0 && r === opt.boldRow) || (opt.boldCol != null && opt.boldCol >= 0 && c === opt.boldCol) ? ' s="1"' : "";
@@ -350,36 +360,53 @@ F.writeXLSX = async function (rows, name, opt) {
   const w = rows.reduce((m, r) => Math.max(m, r.length), 0);
   const dim = rows.length && w ? '<dimension ref="A1:' + F.colName(w - 1) + rows.length + '"/>' : "";
   const data = rows.map((r, i) => '<row r="' + (i + 1) + '">' + r.map((v, j) => cell(v, i, j)).join("") + "</row>").join("");
-  const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + dim + pane + "<sheetData>" + data + "</sheetData></worksheet>";
-  return F.zip([
-    { name: "[Content_Types].xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>' },
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + dim + pane + "<sheetData>" + data + "</sheetData></worksheet>";
+}
+F.writeXLSX = async function (sheets, name, opt) {
+  sheets = asSheets(sheets, name, opt);
+  const names = uniqueNames(sheets.map((s) => s.name)), n = sheets.length;
+  const files = [
+    { name: "[Content_Types].xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      sheets.map((_, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("") +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>' },
     { name: "_rels/.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>' },
     { name: "docProps/app.xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>jellytable</Application></Properties>' },
-    { name: "xl/workbook.xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + xesc(sheetName(name)) + '" sheetId="1" r:id="rId1"/></sheets></workbook>' },
-    { name: "xl/_rels/workbook.xml.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
-    { name: "xl/styles.xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>' },
-    { name: "xl/worksheets/sheet1.xml", data: sheet }
-  ]);
+    { name: "xl/workbook.xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+      names.map((nm, i) => '<sheet name="' + xesc(nm) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join("") + "</sheets></workbook>" },
+    { name: "xl/_rels/workbook.xml.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      sheets.map((_, i) => '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join("") +
+      '<Relationship Id="rId' + (n + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+    { name: "xl/styles.xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>' }
+  ];
+  sheets.forEach((sh, i) => files.push({ name: "xl/worksheets/sheet" + (i + 1) + ".xml", data: xlsxSheet(sh.rows, sh.opt) }));
+  return F.zip(files);
 };
-F.writeODS = async function (rows, name) {
+F.writeODS = async function (sheets, name) {
+  sheets = asSheets(sheets, name);
+  const names = uniqueNames(sheets.map((s) => s.name));
   const cell = (v) => {
     if (v === "" || v == null) return "<table:table-cell/>";
     if (F.isNumber(v)) return '<table:table-cell office:value-type="float" office:value="' + v + '"><text:p>' + v + "</text:p></table:table-cell>";
     return '<table:table-cell office:value-type="string">' + String(v).split("\n").map((l) => "<text:p>" + xesc(l) + "</text:p>").join("") + "</table:table-cell>";
   };
-  const width = rows.reduce((a, r) => Math.max(a, r.length), 0) || 1;
-  const content = '<?xml version="1.0" encoding="UTF-8"?>\n<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2"><office:body><office:spreadsheet><table:table table:name="' + xesc(sheetName(name)) + '"><table:table-column table:number-columns-repeated="' + width + '"/>' +
-    rows.map((r) => "<table:table-row>" + r.map(cell).join("") + "</table:table-row>").join("") + "</table:table></office:spreadsheet></office:body></office:document-content>";
+  const table = (rows, nm) => {
+    const width = rows.reduce((a, r) => Math.max(a, r.length), 0) || 1;
+    return '<table:table table:name="' + xesc(nm) + '"><table:table-column table:number-columns-repeated="' + width + '"/>' + rows.map((r) => "<table:table-row>" + r.map(cell).join("") + "</table:table-row>").join("") + "</table:table>";
+  };
+  const content = '<?xml version="1.0" encoding="UTF-8"?>\n<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2"><office:body><office:spreadsheet>' +
+    sheets.map((sh, i) => table(sh.rows, names[i])).join("") + "</office:spreadsheet></office:body></office:document-content>";
   return F.zip([
     { name: "mimetype", data: "application/vnd.oasis.opendocument.spreadsheet", store: true },
     { name: "META-INF/manifest.xml", data: '<?xml version="1.0" encoding="UTF-8"?>\n<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2"><manifest:file-entry manifest:full-path="/" manifest:version="1.2" manifest:media-type="application/vnd.oasis.opendocument.spreadsheet"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>' },
     { name: "content.xml", data: content }
   ]);
 };
-F.writeXML2003 = function (rows, name) {
+F.writeXML2003 = function (sheets, name) {
+  sheets = asSheets(sheets, name);
+  const names = uniqueNames(sheets.map((s) => s.name));
   const cell = (v) => v === "" || v == null ? "<Cell/>" : F.isNumber(v) ? '<Cell><Data ss:Type="Number">' + v + "</Data></Cell>" : '<Cell><Data ss:Type="String">' + xesc(v).replace(/\n/g, "&#10;") + "</Data></Cell>";
-  return '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="' + xesc(sheetName(name)) + '"><Table>' +
-    rows.map((r) => "<Row>" + r.map(cell).join("") + "</Row>").join("") + "</Table></Worksheet></Workbook>\n";
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+    sheets.map((sh, i) => '<Worksheet ss:Name="' + xesc(names[i]) + '"><Table>' + sh.rows.map((r) => "<Row>" + r.map(cell).join("") + "</Row>").join("") + "</Table></Worksheet>").join("") + "</Workbook>\n";
 };
 
 window.JTFormats = F;

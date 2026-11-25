@@ -16,8 +16,11 @@ Umfrage-Tools exportieren CSV- oder Excel-Dateien, die schwer zu lesen sind: dut
 - 🏷️ **Du bestimmst, wo die Bezeichnungen stehen:** Eine Vorschau zeigt, in welcher Zeile (oder Spalte) die Item-Namen stehen, wo die Einträge beginnen und welche Spalte die Einträge bezeichnet (z. B. Personen-ID). Zusätzliche Kopfzeilen – etwa Fragetext und Import-IDs in Qualtrics-Exporten – bleiben als *Item-Details* erhalten und werden unverändert mit exportiert.
 - 🔎 **Durchblättern:** Item-Liste mit Suche und Füllstand, Einträge mit Häufigkeiten bei geschlossenen Fragen, eine Kennung deiner Wahl (z. B. Teilnehmenden-ID) neben jedem Eintrag, Suche in den Einträgen.
 - ↔️ **Angenehm lesen:** Den Rand der Item-Liste ziehen, um sie breiter oder schmaler zu machen (wird gemerkt); Eintrags-Boxen wachsen mit ihrem Inhalt (oder auf volle Breite umschalten).
-- ✏️ **Bearbeiten:** Einträge ändern, **＋** fügt überall einen leeren Eintrag ein (auch am Anfang und Ende), **−** entfernt einen Eintrag, Items umbenennen / hinzufügen / löschen / verschieben. Rückgängig und Wiederholen für alles.
-- 💾 **Speichern & Export:** Excel (`.xlsx`), OpenDocument (`.ods`), CSV (Komma, UTF-8), CSV für Excel (Semikolon, mit BOM), TSV, Excel-2003-XML, JSON – mit Items als Spalten oder Zeilen.
+- ✏️ **Bearbeiten:** Einträge und ihre Bezeichnungen ändern, **＋** fügt überall einen leeren Eintrag ein (auch am Anfang und Ende), **−** entfernt einen Eintrag – für die **ganze Zeile** (alle Items, so bleiben Personen und Antworten zusammen) oder **nur dieses Item**. Items umbenennen / hinzufügen / löschen / verschieben. Rückgängig und Wiederholen für alles.
+- 🧾 **Änderungsprotokoll:** Jede Änderung steht mit Uhrzeit und vorher → nachher in einer Liste, geänderte Einträge sind markiert; das Protokoll lässt sich als CSV speichern (z. B. für den Methodenteil).
+- 🧭 **Navigieren:** leere Einträge ausblenden, sortieren (A→Z, Z→A, nach Häufigkeit), zu Eintrag Nr. … springen, Strg+Enter springt zum nächsten Eintrag.
+- 💾 **Speichern & Export:** Excel (`.xlsx`), OpenDocument (`.ods`), CSV (Komma, UTF-8), CSV für Excel (Semikolon, mit BOM), TSV, Excel-2003-XML, JSON – mit Items als Spalten oder Zeilen. **Weitere Tabellenblätter** einer Arbeitsmappe werden mitgespeichert (Werte). In Chrome/Edge wählst du einmal den Speicherort, danach speichert Strg+S direkt dorthin; in Firefox/Safari wird die Datei heruntergeladen.
+- 🦊 **Läuft in Firefox, Chrome, Edge und Safari** – automatisch getestet in Firefox und Chromium.
 - 🌙 **Hell- und Dunkelmodus**, 🌐 Oberfläche auf **Deutsch und Englisch**.
 
 ## Benutzen
@@ -25,7 +28,7 @@ Umfrage-Tools exportieren CSV- oder Excel-Dateien, die schwer zu lesen sind: dut
 - **Online:** die GitHub-Pages-Seite dieses Repos öffnen (siehe *Veröffentlichen* unten).
 - **Offline:** [`index.html`](index.html) herunterladen (z. B. *Raw → Speichern unter …*) und im Browser öffnen. Mehr braucht es nicht.
 
-Dann: **1** festlegen, ob die Items Spalten oder Zeilen sind → **2** Datei hineinziehen → **3** in der Vorschau prüfen und festlegen, wo Item-Namen, Einträge und die Bezeichnung der Einträge stehen → durchblättern. Schritt 3 lässt sich jederzeit wieder ändern (⋯-Menü → *Ausrichtung & Bezeichnungen*).
+Dann: **1** festlegen, ob die Items Spalten oder Zeilen sind → **2** Datei hineinziehen → **3** in der Vorschau prüfen und festlegen, wo Item-Namen, Einträge und die Bezeichnung der Einträge stehen → durchblättern. Schritt 3 lässt sich jederzeit wieder ändern: **Einrichten** in der Menüzeile, oder auf den Chip „Spalte E · Items als Spalten“ über den Einträgen klicken.
 
 <img src="docs/screenshot-setup.png" alt="Schritt 3: Vorschau mit Item-Namen in Zeile 1, zwei weiteren Kopfzeilen als Item-Details, Einträgen ab Zeile 4 und Bezeichnung in Spalte A" width="1100">
 
@@ -52,6 +55,7 @@ Werte, die wie einfache Zahlen aussehen, werden als Zahl geschrieben, alles ande
 | Strg + E | Exportieren |
 | Strg + O | Datei öffnen |
 | Strg + Z / Strg + Y | Rückgängig / Wiederholen |
+| Strg + Enter | Nächster Eintrag (mit Umschalt: vorheriger) |
 | Alt + ↑ / ↓ | Vorheriges / nächstes Item |
 
 Auf dem Mac jeweils Cmd statt Strg.
@@ -78,6 +82,22 @@ python3 build.py
 ```
 
 `samples/edge-cases.csv` enthält Anführungszeichen, Zeilenumbrüche in Zellen, Umlaute, Emoji und leere Zellen zum Testen.
+
+### Tests
+
+Automatische Tests öffnen `index.html` in echten Browsern (**Chromium und Firefox**) und prüfen alle Formate, Schritt 3, Bearbeiten, Rückgängig, das Änderungsprotokoll, mehrere Tabellenblätter, die Navigation und das Speichern. Auf GitHub laufen sie bei jedem Push (`.github/workflows/tests.yml`). Lokal:
+
+```bash
+npm install
+```
+
+```bash
+npx playwright install chromium firefox
+```
+
+```bash
+npm test
+```
 
 ## Veröffentlichen (GitHub Pages)
 

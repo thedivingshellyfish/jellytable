@@ -1,0 +1,15 @@
+{
+  "name": "jellytable",
+  "private": true,
+  "description": "jellyqda goes table – browse survey tables offline in the browser",
+  "license": "MIT",
+  "scripts": {
+    "build": "python3 build.py",
+    "test": "node tests/run.cjs chromium,firefox",
+    "test:chromium": "node tests/run.cjs chromium",
+    "test:firefox": "node tests/run.cjs firefox"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}
