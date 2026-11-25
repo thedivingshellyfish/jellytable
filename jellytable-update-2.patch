@@ -1,0 +1,360 @@
+From 0953b0887c2d39bc1a04d5371d82212140989fd5 Mon Sep 17 00:00:00 2001
+From: thedivingshellyfish <jellyqda@systemli.org>
+Date: Wed, 25 Nov 2026 13:06:40 +0000
+Subject: [PATCH] Editable entry labels above each entry, orientation graphics
+ in step 3
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- the label of each entry (e.g. participant ID from the chosen label
+  column/row) sits above its box and can be edited directly; changes
+  go into the label item, are saved/exported and can be undone without
+  jumping to that item. Without a label item the position in the file
+  is shown ("Row 5" / "Column E").
+- step 3 shows "items as columns / rows" as graphic cards with a tick,
+  like step 1
+- item header shows a chip with a mini graphic and the item's position
+  ("Column E · Items as columns")
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01CwaRKVwrR9hvVWRrni6Bok
+---
+ index.html    | 63 +++++++++++++++++++++++++++++++++++++--------------
+ src/app.js    | 29 +++++++++++++++++++-----
+ src/i18n.js   |  4 ++--
+ src/style.css | 30 ++++++++++++++++--------
+ 4 files changed, 92 insertions(+), 34 deletions(-)
+
+diff --git a/index.html b/index.html
+index 864a949..ba7b0b0 100644
+--- a/index.html
++++ b/index.html
+@@ -156,15 +156,20 @@ svg.i { width: 18px; height: 18px; flex: none; }
+ .gap:hover .add, .add:focus { opacity: 1; color: var(--accent); border-color: var(--accent); }
+ .gap.edge { height: 34px; }
+ .gap.edge .add { opacity: 1; width: auto; padding: 0 10px; gap: 6px; display: inline-flex; align-items: center; font-size: 12.5px; font-weight: 700; height: 26px; }
+-.entry { display: grid; grid-template-columns: 44px auto minmax(0, 1fr) 34px; gap: 8px; align-items: start; }
+-.entry .no { font-size: 12px; color: var(--muted); text-align: right; padding-top: 10px; font-variant-numeric: tabular-nums; }
+-.entry .id { font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 8px; margin-top: 6px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, transparent); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+-.entry .id:empty { display: none; }
++.entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) 34px; gap: 8px; align-items: start; }
++.ebox { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
++.elab { display: flex; min-width: 0; }
++.elab input.lab { font-size: 12px; font-weight: 750; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); border: 1px solid transparent; border-radius: 8px; padding: 2px 8px; max-width: 100%; min-width: 0; outline: none; }
++.elab input.lab:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
++.elab input.lab:focus { border-color: var(--accent); background: var(--card); }
++.elab input.lab::placeholder { color: var(--muted); font-weight: 600; }
++.elab .pos { font-size: 11.5px; font-weight: 650; color: var(--muted); padding: 2px 2px; cursor: help; }
++.entry .no { font-size: 12px; color: var(--muted); text-align: right; padding-top: 32px; font-variant-numeric: tabular-nums; }
+ .entry textarea { width: 100%; max-width: 100%; justify-self: start; resize: vertical; min-height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); padding: 9px 11px; line-height: 1.45; outline: none; overflow: hidden; }
+ .entry textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+ .entry textarea.empty { background: transparent; border-style: dashed; }
+ .entry textarea.changed { border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); }
+-.entry .del { width: 30px; height: 30px; margin-top: 5px; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
++.entry .del { width: 30px; height: 30px; margin-top: 27px; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
+ .entry .del:hover { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+ mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inherit; border-radius: 3px; }
+ .pager { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 16px 0 0; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+@@ -175,10 +180,7 @@ mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inhe
+   .browser.sideopen .side { transform: none; }
+   .sidetoggle { display: inline-flex; }
+   .main { padding: 14px 12px 40px; }
+-  .entry { grid-template-columns: 30px minmax(0, 1fr) 32px; }
+-  .entry .id { grid-column: 2; grid-row: 1; margin-top: 0; justify-self: start; }
+-  .entry .id:not(:empty) + textarea { grid-row: 2; }
+-  .entry .no { grid-row: 1 / span 2; }
++  .entry { grid-template-columns: 26px minmax(0, 1fr) 32px; }
+ }
+ 
+ /* ---------- Dialoge ---------- */
+@@ -249,6 +251,16 @@ table.prev { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+ .sugrid > * { min-width: 0; }
+ .seg2 { flex-wrap: wrap; }
+ 
++/* Ausrichtung in Schritt 3 + Positions-Chip */
++.sugrid .span2 { grid-column: 1 / -1; }
++.orients.compact .orient { position: relative; padding: 10px 12px; margin-top: 2px; }
++.orients.compact .orient svg { width: 84px; height: 55px; }
++.orient .tick { position: absolute; top: 8px; right: 10px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; }
++.orient:not(.on) { opacity: .75; }
++.orient:not(.on):hover { opacity: 1; }
++.chip.where { display: inline-flex; align-items: center; gap: 6px; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
++.chip.where svg { width: 26px; height: 17px; }
++
+ </style>
+ </head>
+ <body>
+@@ -691,7 +703,7 @@ window.JTText = {
+     previewNote: (r, c, R, C) => "Vorschau: " + r + " von " + R + " Zeilen, " + c + " von " + C + " Spalten.",
+     sum: (i, e, rows) => i + " Items mit je " + e + " Einträgen",
+     sumMeta: (k, rows) => k + (rows ? (k === 1 ? " weitere Spalte" : " weitere Spalten") : (k === 1 ? " weitere Kopfzeile" : " weitere Kopfzeilen")) + " vor den Einträgen " + (k === 1 ? "bleibt" : "bleiben") + " als Item-Details erhalten (z. B. Fragetext) und " + (k === 1 ? "wird" : "werden") + " mit exportiert.",
+-    apply: "Übernehmen", back: "Zurück",
++    apply: "Übernehmen", back: "Zurück", noLabel: "Bezeichnung …", labHint: "Unter „Bezeichnung der Einträge“ eine Spalte bzw. Zeile wählen, um hier eigene Bezeichnungen zu vergeben.",
+     fitT: "Boxen:", fitOn: "an Inhalt", fitOff: "volle Breite", resize: "Breite ziehen · Doppelklick: zurücksetzen", newTable: "Andere Datei öffnen", autosave: "Arbeitsstand im Browser merken",
+     autosaveD: "Nur auf diesem Gerät (IndexedDB), standardmäßig aus", forget: "Gespeicherte Daten löschen", forgetD: "Arbeitsstand und Einstellungen aus diesem Browser entfernen",
+     shortcuts: "Tastenkürzel", about: "Über jellytable & Datenschutz",
+@@ -743,7 +755,7 @@ window.JTText = {
+     previewNote: (r, c, R, C) => "Preview: " + r + " of " + R + " rows, " + c + " of " + C + " columns.",
+     sum: (i, e, rows) => i + " items with " + e + " entries each",
+     sumMeta: (k, rows) => k + (rows ? (k === 1 ? " further column" : " further columns") : (k === 1 ? " further header row" : " further header rows")) + " before the entries " + (k === 1 ? "is" : "are") + " kept as item details (e.g. question text) and exported again.",
+-    apply: "Apply", back: "Back",
++    apply: "Apply", back: "Back", noLabel: "Label …", labHint: "Choose a column or row under “Entry labels” to give entries your own labels here.",
+     fitT: "Boxes:", fitOn: "fit content", fitOff: "full width", resize: "Drag to resize · double-click: reset", newTable: "Open another file", autosave: "Remember work in this browser",
+     autosaveD: "Only on this device (IndexedDB), off by default", forget: "Delete stored data", forgetD: "Remove work and settings from this browser",
+     shortcuts: "Keyboard shortcuts", about: "About jellytable & privacy",
+@@ -841,7 +853,7 @@ function pushUndo(op) { U.undo.push(op); if (U.undo.length > 500) U.undo.shift()
+ const snapItem = (i) => ({ kind: "item", i, name: S.items[i].name, values: S.items[i].values.slice() });
+ const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })), cur: S.cur, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem });
+ function applyOp(op) {   // gibt die Gegen-Operation zurück
+-  if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] }; S.items[op.i].values[op.k] = op.v; S.cur = op.i; return inv; }
++  if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] ?? "", keep: op.keep }; S.items[op.i].values[op.k] = op.v; if (!op.keep) S.cur = op.i; return inv; }
+   if (op.kind === "item") { const inv = snapItem(op.i); S.items[op.i].name = op.name; S.items[op.i].values = op.values; S.cur = op.i; return inv; }
+   const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1);
+   S.orient = op.orient; S.h = op.h; S.d = op.d; S.idItem = op.idItem; return inv;
+@@ -966,7 +978,9 @@ function renderSetup() {
+   $("view").innerHTML = '<div class="start">' +
+     '<section class="panel step"><div class="sn">3</div><div><h2>' + T.s3 + '</h2><p class="muted" style="margin:-4px 0 14px">' + T.s3D + "</p>" +
+     '<div class="sugrid">' +
+-      '<div class="field" style="margin:0">' + T.orientT + '<div class="seg2"><button class="' + (!rows ? "on" : "") + '" data-act="su-orient" data-k="cols">' + T.colsT + '</button><button class="' + (rows ? "on" : "") + '" data-act="su-orient" data-k="rows">' + T.rowsT + "</button></div></div>" +
++      '<div class="field span2" style="margin:0">' + T.orientT + '<div class="orients compact">' +
++        '<button class="orient' + (!rows ? " on" : "") + '" data-act="su-orient" data-k="cols" aria-pressed="' + !rows + '">' + ORIENT_SVG(false) + "<span><b>" + T.colsT + "</b><small>" + T.colsD + "</small></span>" + (!rows ? '<span class="tick">✓</span>' : "") + "</button>" +
++        '<button class="orient' + (rows ? " on" : "") + '" data-act="su-orient" data-k="rows" aria-pressed="' + rows + '">' + ORIENT_SVG(true) + "<span><b>" + T.rowsT + "</b><small>" + T.rowsD + "</small></span>" + (rows ? '<span class="tick">✓</span>' : "") + "</button></div></div>" +
+       '<label class="field" style="margin:0"><span><i class="lg nm"></i>' + T.namesAt + '</span><select id="su-names">' + names + "</select></label>" +
+       '<label class="field" style="margin:0"><span><i class="lg dt"></i>' + T.dataAt + '</span><select id="su-data">' + data + "</select></label>" +
+       '<label class="field" style="margin:0"><span><i class="lg lb"></i>' + T.labelAt + '</span><select id="su-lab">' + lab + "</select></label>" +
+@@ -1154,12 +1168,13 @@ function renderMain() {
+   let h = '<div class="ihead">' + (S.renaming === -2 ? '<input class="rn" id="rnh" value="' + esc(it.name) + '">' : '<h1 data-act="renamehead" title="' + T.rename + '">' + (it.name === "" ? '<span class="ph">' + esc(itemName(it, S.cur)) + "</span>" : esc(it.name)) + "</h1>") +
+     '<button class="mini" data-act="move" data-k="-1" title="' + T.up + '">' + ICON.up + '</button><button class="mini" data-act="move" data-k="1" title="' + T.down + '">' + ICON.down + "</button></div>";
+   if (metaText(it)) h += '<p class="imeta">' + esc(metaText(it)) + "</p>";
+-  h += '<div class="stats"><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
++  const posLbl = it.label && it.label !== "+" ? (S.orient === "cols" ? T.colN(it.label) : T.rowN(it.label)) : T.newItem;
++  h += '<div class="stats"><span class="chip where" title="' + (S.orient === "cols" ? T.colsT : T.rowsT) + '">' + ORIENT_SVG(S.orient === "rows") + "<b>" + esc(posLbl) + "</b> · " + (S.orient === "cols" ? T.colsT : T.rowsT) + '</span><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
+   if (distinct > 0 && distinct <= 12 && filled > distinct) {
+     const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true })), mx = top[0][1];
+     h += '<div class="dist">' + top.map(([v, c]) => '<div class="row"><span title="' + esc(v) + '">' + esc(v) + '</span><i style="width:' + Math.max(3, Math.round(100 * c / mx)) + '%"></i><em>' + c + "</em></div>").join("") + "</div>";
+   }
+-  h += '<div class="etools"><label>' + T.idShow + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
++  h += '<div class="etools"><label>' + T.labelAt + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
+     '<span class="fitsel">' + T.fitT + ' <span class="seg2 small"><button class="' + (P.fit ? "on" : "") + '" data-act="fit" data-k="1">' + T.fitOn + '</button><button class="' + (!P.fit ? "on" : "") + '" data-act="fit" data-k="0">' + T.fitOff + "</button></span></span>" +
+     '<span class="grow"></span><div class="search" style="min-width:200px">' + ICON.search + '<input type="search" id="esearch" placeholder="' + T.filter + '" value="' + esc(S.filter) + '"></div></div>';
+   const m = matches();
+@@ -1175,15 +1190,19 @@ function renderMain() {
+   idx.forEach((k, j) => {
+     if (j > 0 && !m) list += '<li class="gap"><button class="add" data-act="ins" data-k="' + k + '" title="' + T.insertHere + '" aria-label="' + T.insertHere + '">' + ICON.plus + "</button></li>";
+     const v = vals[k];
+-    list += '<li class="entry"><span class="no">' + (k + 1) + '</span><span class="id">' + (idVals ? esc(idVals[k] ?? "") : "") + '</span><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
++    const lab = idVals ? '<input class="lab" data-lk="' + k + '" value="' + esc(idVals[k] ?? "") + '" placeholder="' + T.noLabel + '" spellcheck="false" aria-label="' + esc(T.labelAt) + " " + (k + 1) + '">'
++      : '<span class="pos" title="' + esc(T.labHint) + '">' + esc(S.orient === "cols" ? T.rowN(k + S.d + 1) : T.colN(F.colName(k + S.d))) + "</span>";
++    list += '<li class="entry"><span class="no">' + (k + 1) + '</span><div class="ebox"><div class="elab">' + lab + '</div><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea></div><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
+   });
+   if (!m && S.page === pages - 1) list += '<li class="gap edge"><button class="add" data-act="ins" data-k="' + n + '">' + ICON.plus + T.addLast + "</button></li>";
+   h += '<ul class="entries" id="entries">' + list + "</ul>";
+   if (pages > 1) h += '<div class="pager"><button class="btn small" data-act="page" data-k="-1"' + (S.page === 0 ? " disabled" : "") + ">‹ " + T.prev + "</button><span>" + T.page(S.page * PAGE + 1, Math.min(total, S.page * PAGE + PAGE), total) + '</span><button class="btn small" data-act="page" data-k="1"' + (S.page >= pages - 1 ? " disabled" : "") + ">" + T.next + " ›</button></div>";
+   main.innerHTML = h;
+   main.querySelectorAll("textarea").forEach(fit);
++  main.querySelectorAll("input.lab").forEach(fitLab);
+   const rnh = $("rnh"); if (rnh) { rnh.focus(); rnh.select(); }
+ }
++function fitLab(el) { el.style.width = Math.max(8, Array.from(el.value || el.placeholder).length + 3) + "ch"; }
+ function fit(ta) {   // Breite wächst mit dem Inhalt (längste Zeile), Höhe mit der Zeilenzahl
+   if (P.fit) { const w = ta.value.split("\n").reduce((a, l) => Math.max(a, Array.from(l).length), 0); ta.style.width = "min(100%, " + Math.max(14, w + 4) + "ch)"; }
+   else ta.style.width = "100%";
+@@ -1265,16 +1284,26 @@ document.addEventListener("change", (e) => {
+   if (t.id === "su-data") { S.setup.d = +t.value; renderSetup(); }
+   if (t.id === "su-lab") { S.setup.lab = +t.value; renderSetup(); }
+   if (t.id === "fname") { S.fileName = t.value.trim() || "jellytable"; renderBarState(); autosaveSoon(); }
++  if (t.classList.contains("lab") && S.idItem >= 0) {
++    const k = +t.dataset.lk, before = t.dataset.before;
++    if (before != null && before !== t.value) pushUndo({ kind: "cell", i: S.idItem, k, v: before, keep: true });
++    t.dataset.before = t.value;
++  }
+   if (t.tagName === "TEXTAREA" && t.dataset.k != null) {
+     const k = +t.dataset.k, before = t.dataset.before;
+     if (before != null && before !== t.value) { pushUndo({ kind: "cell", i: S.cur, k, v: before }); renderSide(); }
+     t.dataset.before = t.value;
+   }
+ });
+-document.addEventListener("focusin", (e) => { const t = e.target; if (t.tagName === "TEXTAREA" && t.dataset.k != null) t.dataset.before = S.items[S.cur].values[+t.dataset.k] ?? ""; });
++document.addEventListener("focusin", (e) => {
++  const t = e.target;
++  if (t.tagName === "TEXTAREA" && t.dataset.k != null) t.dataset.before = S.items[S.cur].values[+t.dataset.k] ?? "";
++  if (t.classList && t.classList.contains("lab")) t.dataset.before = S.items[S.idItem].values[+t.dataset.lk] ?? "";
++});
+ document.addEventListener("input", (e) => {
+   const t = e.target;
+   if (t.tagName === "TEXTAREA" && t.dataset.k != null) { S.items[S.cur].values[+t.dataset.k] = t.value; t.classList.toggle("empty", t.value === ""); t.classList.add("changed"); fit(t); if (!S.dirty) setDirty(true); else autosaveSoon(); }
++  if (t.classList.contains("lab") && S.idItem >= 0) { const vals = S.items[S.idItem].values, k = +t.dataset.lk; while (vals.length < k) vals.push(""); vals[k] = t.value; fitLab(t); if (!S.dirty) setDirty(true); else autosaveSoon(); }
+   if (t.id === "isearch") { S.itemFilter = t.value; renderSide(); }
+   if (t.id === "esearch") { S.filter = t.value; S.page = 0; clearTimeout(t._h); t._h = setTimeout(() => { const pos = t.selectionStart; renderMain(); const n = $("esearch"); n.focus(); n.setSelectionRange(pos, pos); }, 200); }
+ });
+diff --git a/src/app.js b/src/app.js
+index 2a8d964..1650647 100644
+--- a/src/app.js
++++ b/src/app.js
+@@ -83,7 +83,7 @@ function pushUndo(op) { U.undo.push(op); if (U.undo.length > 500) U.undo.shift()
+ const snapItem = (i) => ({ kind: "item", i, name: S.items[i].name, values: S.items[i].values.slice() });
+ const snapAll = () => ({ kind: "all", items: S.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })), cur: S.cur, orient: S.orient, h: S.h, d: S.d, idItem: S.idItem });
+ function applyOp(op) {   // gibt die Gegen-Operation zurück
+-  if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] }; S.items[op.i].values[op.k] = op.v; S.cur = op.i; return inv; }
++  if (op.kind === "cell") { const inv = { kind: "cell", i: op.i, k: op.k, v: S.items[op.i].values[op.k] ?? "", keep: op.keep }; S.items[op.i].values[op.k] = op.v; if (!op.keep) S.cur = op.i; return inv; }
+   if (op.kind === "item") { const inv = snapItem(op.i); S.items[op.i].name = op.name; S.items[op.i].values = op.values; S.cur = op.i; return inv; }
+   const inv = snapAll(); S.items = op.items.map((it) => ({ name: it.name, label: it.label, meta: it.meta, values: it.values })); S.cur = Math.min(op.cur, S.items.length - 1);
+   S.orient = op.orient; S.h = op.h; S.d = op.d; S.idItem = op.idItem; return inv;
+@@ -208,7 +208,9 @@ function renderSetup() {
+   $("view").innerHTML = '<div class="start">' +
+     '<section class="panel step"><div class="sn">3</div><div><h2>' + T.s3 + '</h2><p class="muted" style="margin:-4px 0 14px">' + T.s3D + "</p>" +
+     '<div class="sugrid">' +
+-      '<div class="field" style="margin:0">' + T.orientT + '<div class="seg2"><button class="' + (!rows ? "on" : "") + '" data-act="su-orient" data-k="cols">' + T.colsT + '</button><button class="' + (rows ? "on" : "") + '" data-act="su-orient" data-k="rows">' + T.rowsT + "</button></div></div>" +
++      '<div class="field span2" style="margin:0">' + T.orientT + '<div class="orients compact">' +
++        '<button class="orient' + (!rows ? " on" : "") + '" data-act="su-orient" data-k="cols" aria-pressed="' + !rows + '">' + ORIENT_SVG(false) + "<span><b>" + T.colsT + "</b><small>" + T.colsD + "</small></span>" + (!rows ? '<span class="tick">✓</span>' : "") + "</button>" +
++        '<button class="orient' + (rows ? " on" : "") + '" data-act="su-orient" data-k="rows" aria-pressed="' + rows + '">' + ORIENT_SVG(true) + "<span><b>" + T.rowsT + "</b><small>" + T.rowsD + "</small></span>" + (rows ? '<span class="tick">✓</span>' : "") + "</button></div></div>" +
+       '<label class="field" style="margin:0"><span><i class="lg nm"></i>' + T.namesAt + '</span><select id="su-names">' + names + "</select></label>" +
+       '<label class="field" style="margin:0"><span><i class="lg dt"></i>' + T.dataAt + '</span><select id="su-data">' + data + "</select></label>" +
+       '<label class="field" style="margin:0"><span><i class="lg lb"></i>' + T.labelAt + '</span><select id="su-lab">' + lab + "</select></label>" +
+@@ -396,12 +398,13 @@ function renderMain() {
+   let h = '<div class="ihead">' + (S.renaming === -2 ? '<input class="rn" id="rnh" value="' + esc(it.name) + '">' : '<h1 data-act="renamehead" title="' + T.rename + '">' + (it.name === "" ? '<span class="ph">' + esc(itemName(it, S.cur)) + "</span>" : esc(it.name)) + "</h1>") +
+     '<button class="mini" data-act="move" data-k="-1" title="' + T.up + '">' + ICON.up + '</button><button class="mini" data-act="move" data-k="1" title="' + T.down + '">' + ICON.down + "</button></div>";
+   if (metaText(it)) h += '<p class="imeta">' + esc(metaText(it)) + "</p>";
+-  h += '<div class="stats"><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
++  const posLbl = it.label && it.label !== "+" ? (S.orient === "cols" ? T.colN(it.label) : T.rowN(it.label)) : T.newItem;
++  h += '<div class="stats"><span class="chip where" title="' + (S.orient === "cols" ? T.colsT : T.rowsT) + '">' + ORIENT_SVG(S.orient === "rows") + "<b>" + esc(posLbl) + "</b> · " + (S.orient === "cols" ? T.colsT : T.rowsT) + '</span><span class="chip"><b>' + n + "</b> " + T.entries + '</span><span class="chip"><b>' + filled + "</b> " + T.filled + '</span><span class="chip"><b>' + (n - filled) + "</b> " + T.empty + '</span><span class="chip"><b>' + distinct + "</b> " + T.distinct + "</span></div>";
+   if (distinct > 0 && distinct <= 12 && filled > distinct) {
+     const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { numeric: true })), mx = top[0][1];
+     h += '<div class="dist">' + top.map(([v, c]) => '<div class="row"><span title="' + esc(v) + '">' + esc(v) + '</span><i style="width:' + Math.max(3, Math.round(100 * c / mx)) + '%"></i><em>' + c + "</em></div>").join("") + "</div>";
+   }
+-  h += '<div class="etools"><label>' + T.idShow + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
++  h += '<div class="etools"><label>' + T.labelAt + ' <select id="idsel"><option value="-1">' + T.none + "</option>" + S.items.map((x, i) => i === S.cur ? "" : '<option value="' + i + '"' + (i === S.idItem ? " selected" : "") + ">" + esc(itemName(x, i)) + "</option>").join("") + "</select></label>" +
+     '<span class="fitsel">' + T.fitT + ' <span class="seg2 small"><button class="' + (P.fit ? "on" : "") + '" data-act="fit" data-k="1">' + T.fitOn + '</button><button class="' + (!P.fit ? "on" : "") + '" data-act="fit" data-k="0">' + T.fitOff + "</button></span></span>" +
+     '<span class="grow"></span><div class="search" style="min-width:200px">' + ICON.search + '<input type="search" id="esearch" placeholder="' + T.filter + '" value="' + esc(S.filter) + '"></div></div>';
+   const m = matches();
+@@ -417,15 +420,19 @@ function renderMain() {
+   idx.forEach((k, j) => {
+     if (j > 0 && !m) list += '<li class="gap"><button class="add" data-act="ins" data-k="' + k + '" title="' + T.insertHere + '" aria-label="' + T.insertHere + '">' + ICON.plus + "</button></li>";
+     const v = vals[k];
+-    list += '<li class="entry"><span class="no">' + (k + 1) + '</span><span class="id">' + (idVals ? esc(idVals[k] ?? "") : "") + '</span><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
++    const lab = idVals ? '<input class="lab" data-lk="' + k + '" value="' + esc(idVals[k] ?? "") + '" placeholder="' + T.noLabel + '" spellcheck="false" aria-label="' + esc(T.labelAt) + " " + (k + 1) + '">'
++      : '<span class="pos" title="' + esc(T.labHint) + '">' + esc(S.orient === "cols" ? T.rowN(k + S.d + 1) : T.colN(F.colName(k + S.d))) + "</span>";
++    list += '<li class="entry"><span class="no">' + (k + 1) + '</span><div class="ebox"><div class="elab">' + lab + '</div><textarea rows="1" data-k="' + k + '" class="' + (v === "" ? "empty" : "") + '" spellcheck="false" aria-label="' + esc(itemName(it, S.cur)) + " " + (k + 1) + '">' + esc(v) + '</textarea></div><button class="del" data-act="del" data-k="' + k + '" title="' + T.delEntry + '" aria-label="' + T.delEntry + '">' + ICON.minus + "</button></li>";
+   });
+   if (!m && S.page === pages - 1) list += '<li class="gap edge"><button class="add" data-act="ins" data-k="' + n + '">' + ICON.plus + T.addLast + "</button></li>";
+   h += '<ul class="entries" id="entries">' + list + "</ul>";
+   if (pages > 1) h += '<div class="pager"><button class="btn small" data-act="page" data-k="-1"' + (S.page === 0 ? " disabled" : "") + ">‹ " + T.prev + "</button><span>" + T.page(S.page * PAGE + 1, Math.min(total, S.page * PAGE + PAGE), total) + '</span><button class="btn small" data-act="page" data-k="1"' + (S.page >= pages - 1 ? " disabled" : "") + ">" + T.next + " ›</button></div>";
+   main.innerHTML = h;
+   main.querySelectorAll("textarea").forEach(fit);
++  main.querySelectorAll("input.lab").forEach(fitLab);
+   const rnh = $("rnh"); if (rnh) { rnh.focus(); rnh.select(); }
+ }
++function fitLab(el) { el.style.width = Math.max(8, Array.from(el.value || el.placeholder).length + 3) + "ch"; }
+ function fit(ta) {   // Breite wächst mit dem Inhalt (längste Zeile), Höhe mit der Zeilenzahl
+   if (P.fit) { const w = ta.value.split("\n").reduce((a, l) => Math.max(a, Array.from(l).length), 0); ta.style.width = "min(100%, " + Math.max(14, w + 4) + "ch)"; }
+   else ta.style.width = "100%";
+@@ -507,16 +514,26 @@ document.addEventListener("change", (e) => {
+   if (t.id === "su-data") { S.setup.d = +t.value; renderSetup(); }
+   if (t.id === "su-lab") { S.setup.lab = +t.value; renderSetup(); }
+   if (t.id === "fname") { S.fileName = t.value.trim() || "jellytable"; renderBarState(); autosaveSoon(); }
++  if (t.classList.contains("lab") && S.idItem >= 0) {
++    const k = +t.dataset.lk, before = t.dataset.before;
++    if (before != null && before !== t.value) pushUndo({ kind: "cell", i: S.idItem, k, v: before, keep: true });
++    t.dataset.before = t.value;
++  }
+   if (t.tagName === "TEXTAREA" && t.dataset.k != null) {
+     const k = +t.dataset.k, before = t.dataset.before;
+     if (before != null && before !== t.value) { pushUndo({ kind: "cell", i: S.cur, k, v: before }); renderSide(); }
+     t.dataset.before = t.value;
+   }
+ });
+-document.addEventListener("focusin", (e) => { const t = e.target; if (t.tagName === "TEXTAREA" && t.dataset.k != null) t.dataset.before = S.items[S.cur].values[+t.dataset.k] ?? ""; });
++document.addEventListener("focusin", (e) => {
++  const t = e.target;
++  if (t.tagName === "TEXTAREA" && t.dataset.k != null) t.dataset.before = S.items[S.cur].values[+t.dataset.k] ?? "";
++  if (t.classList && t.classList.contains("lab")) t.dataset.before = S.items[S.idItem].values[+t.dataset.lk] ?? "";
++});
+ document.addEventListener("input", (e) => {
+   const t = e.target;
+   if (t.tagName === "TEXTAREA" && t.dataset.k != null) { S.items[S.cur].values[+t.dataset.k] = t.value; t.classList.toggle("empty", t.value === ""); t.classList.add("changed"); fit(t); if (!S.dirty) setDirty(true); else autosaveSoon(); }
++  if (t.classList.contains("lab") && S.idItem >= 0) { const vals = S.items[S.idItem].values, k = +t.dataset.lk; while (vals.length < k) vals.push(""); vals[k] = t.value; fitLab(t); if (!S.dirty) setDirty(true); else autosaveSoon(); }
+   if (t.id === "isearch") { S.itemFilter = t.value; renderSide(); }
+   if (t.id === "esearch") { S.filter = t.value; S.page = 0; clearTimeout(t._h); t._h = setTimeout(() => { const pos = t.selectionStart; renderMain(); const n = $("esearch"); n.focus(); n.setSelectionRange(pos, pos); }, 200); }
+ });
+diff --git a/src/i18n.js b/src/i18n.js
+index 5a3b666..c8ec176 100644
+--- a/src/i18n.js
++++ b/src/i18n.js
+@@ -44,7 +44,7 @@ window.JTText = {
+     previewNote: (r, c, R, C) => "Vorschau: " + r + " von " + R + " Zeilen, " + c + " von " + C + " Spalten.",
+     sum: (i, e, rows) => i + " Items mit je " + e + " Einträgen",
+     sumMeta: (k, rows) => k + (rows ? (k === 1 ? " weitere Spalte" : " weitere Spalten") : (k === 1 ? " weitere Kopfzeile" : " weitere Kopfzeilen")) + " vor den Einträgen " + (k === 1 ? "bleibt" : "bleiben") + " als Item-Details erhalten (z. B. Fragetext) und " + (k === 1 ? "wird" : "werden") + " mit exportiert.",
+-    apply: "Übernehmen", back: "Zurück",
++    apply: "Übernehmen", back: "Zurück", noLabel: "Bezeichnung …", labHint: "Unter „Bezeichnung der Einträge“ eine Spalte bzw. Zeile wählen, um hier eigene Bezeichnungen zu vergeben.",
+     fitT: "Boxen:", fitOn: "an Inhalt", fitOff: "volle Breite", resize: "Breite ziehen · Doppelklick: zurücksetzen", newTable: "Andere Datei öffnen", autosave: "Arbeitsstand im Browser merken",
+     autosaveD: "Nur auf diesem Gerät (IndexedDB), standardmäßig aus", forget: "Gespeicherte Daten löschen", forgetD: "Arbeitsstand und Einstellungen aus diesem Browser entfernen",
+     shortcuts: "Tastenkürzel", about: "Über jellytable & Datenschutz",
+@@ -96,7 +96,7 @@ window.JTText = {
+     previewNote: (r, c, R, C) => "Preview: " + r + " of " + R + " rows, " + c + " of " + C + " columns.",
+     sum: (i, e, rows) => i + " items with " + e + " entries each",
+     sumMeta: (k, rows) => k + (rows ? (k === 1 ? " further column" : " further columns") : (k === 1 ? " further header row" : " further header rows")) + " before the entries " + (k === 1 ? "is" : "are") + " kept as item details (e.g. question text) and exported again.",
+-    apply: "Apply", back: "Back",
++    apply: "Apply", back: "Back", noLabel: "Label …", labHint: "Choose a column or row under “Entry labels” to give entries your own labels here.",
+     fitT: "Boxes:", fitOn: "fit content", fitOff: "full width", resize: "Drag to resize · double-click: reset", newTable: "Open another file", autosave: "Remember work in this browser",
+     autosaveD: "Only on this device (IndexedDB), off by default", forget: "Delete stored data", forgetD: "Remove work and settings from this browser",
+     shortcuts: "Keyboard shortcuts", about: "About jellytable & privacy",
+diff --git a/src/style.css b/src/style.css
+index 4f00710..dd6b79b 100644
+--- a/src/style.css
++++ b/src/style.css
+@@ -146,15 +146,20 @@ svg.i { width: 18px; height: 18px; flex: none; }
+ .gap:hover .add, .add:focus { opacity: 1; color: var(--accent); border-color: var(--accent); }
+ .gap.edge { height: 34px; }
+ .gap.edge .add { opacity: 1; width: auto; padding: 0 10px; gap: 6px; display: inline-flex; align-items: center; font-size: 12.5px; font-weight: 700; height: 26px; }
+-.entry { display: grid; grid-template-columns: 44px auto minmax(0, 1fr) 34px; gap: 8px; align-items: start; }
+-.entry .no { font-size: 12px; color: var(--muted); text-align: right; padding-top: 10px; font-variant-numeric: tabular-nums; }
+-.entry .id { font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 8px; margin-top: 6px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, transparent); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+-.entry .id:empty { display: none; }
++.entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) 34px; gap: 8px; align-items: start; }
++.ebox { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
++.elab { display: flex; min-width: 0; }
++.elab input.lab { font-size: 12px; font-weight: 750; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); border: 1px solid transparent; border-radius: 8px; padding: 2px 8px; max-width: 100%; min-width: 0; outline: none; }
++.elab input.lab:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
++.elab input.lab:focus { border-color: var(--accent); background: var(--card); }
++.elab input.lab::placeholder { color: var(--muted); font-weight: 600; }
++.elab .pos { font-size: 11.5px; font-weight: 650; color: var(--muted); padding: 2px 2px; cursor: help; }
++.entry .no { font-size: 12px; color: var(--muted); text-align: right; padding-top: 32px; font-variant-numeric: tabular-nums; }
+ .entry textarea { width: 100%; max-width: 100%; justify-self: start; resize: vertical; min-height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); padding: 9px 11px; line-height: 1.45; outline: none; overflow: hidden; }
+ .entry textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+ .entry textarea.empty { background: transparent; border-style: dashed; }
+ .entry textarea.changed { border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); }
+-.entry .del { width: 30px; height: 30px; margin-top: 5px; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
++.entry .del { width: 30px; height: 30px; margin-top: 27px; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
+ .entry .del:hover { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+ mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inherit; border-radius: 3px; }
+ .pager { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 16px 0 0; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+@@ -165,10 +170,7 @@ mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inhe
+   .browser.sideopen .side { transform: none; }
+   .sidetoggle { display: inline-flex; }
+   .main { padding: 14px 12px 40px; }
+-  .entry { grid-template-columns: 30px minmax(0, 1fr) 32px; }
+-  .entry .id { grid-column: 2; grid-row: 1; margin-top: 0; justify-self: start; }
+-  .entry .id:not(:empty) + textarea { grid-row: 2; }
+-  .entry .no { grid-row: 1 / span 2; }
++  .entry { grid-template-columns: 26px minmax(0, 1fr) 32px; }
+ }
+ 
+ /* ---------- Dialoge ---------- */
+@@ -238,3 +240,13 @@ table.prev { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+ .field select, .field input { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+ .sugrid > * { min-width: 0; }
+ .seg2 { flex-wrap: wrap; }
++
++/* Ausrichtung in Schritt 3 + Positions-Chip */
++.sugrid .span2 { grid-column: 1 / -1; }
++.orients.compact .orient { position: relative; padding: 10px 12px; margin-top: 2px; }
++.orients.compact .orient svg { width: 84px; height: 55px; }
++.orient .tick { position: absolute; top: 8px; right: 10px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; }
++.orient:not(.on) { opacity: .75; }
++.orient:not(.on):hover { opacity: 1; }
++.chip.where { display: inline-flex; align-items: center; gap: 6px; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
++.chip.where svg { width: 26px; height: 17px; }
+-- 
+2.43.0
+
